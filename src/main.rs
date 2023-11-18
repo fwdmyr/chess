@@ -36,18 +36,37 @@ pub enum Piece {
 
 impl ToString for Piece {
     fn to_string(&self) -> String {
-        let (repr, color) = match self {
-            Piece::Pawn(color, _) => ("p", color),
-            Piece::Knight(color) => ("k", color),
-            Piece::Bishop(color) => ("b", color),
-            Piece::Rook(color, _) => ("r", color),
-            Piece::Queen(color) => ("q", color),
-            Piece::King(color, _) => ("k", color),
-        };
-        match color {
-            Color::White => repr.to_uppercase(),
-            Color::Black => repr.to_string(),
-            Color::None => "".to_string(),
+        match self {
+            Piece::Pawn(color, _) => match color {
+                Color::White => "♟".to_string(),
+                Color::Black => "♙".to_string(),
+                Color::None => panic!("Piece has no color"),
+            },
+            Piece::Knight(color) => match color {
+                Color::White => "♞".to_string(),
+                Color::Black => "♘".to_string(),
+                Color::None => panic!("Piece has no color"),
+            },
+            Piece::Bishop(color) => match color {
+                Color::White => "♝".to_string(),
+                Color::Black => "♗".to_string(),
+                Color::None => panic!("Piece has no color"),
+            },
+            Piece::Rook(color, _) => match color {
+                Color::White => "♜".to_string(),
+                Color::Black => "♖".to_string(),
+                Color::None => panic!("Piece has no color"),
+            },
+            Piece::Queen(color) => match color {
+                Color::White => "♛".to_string(),
+                Color::Black => "♕".to_string(),
+                Color::None => panic!("Piece has no color"),
+            },
+            Piece::King(color, _) => match color {
+                Color::White => "♚".to_string(),
+                Color::Black => "♔".to_string(),
+                Color::None => panic!("Piece has no color"),
+            },
         }
     }
 }
@@ -349,7 +368,7 @@ impl Board {
         board[Position::new(6, 5)] = Some(Piece::Pawn(Color::Black, false));
         board[Position::new(6, 6)] = Some(Piece::Pawn(Color::Black, false));
         board[Position::new(6, 7)] = Some(Piece::Pawn(Color::Black, false));
-        // Eight rank.
+        // Eigth rank.
         board[Position::new(7, 0)] = Some(Piece::Rook(Color::Black, false));
         board[Position::new(7, 1)] = Some(Piece::Knight(Color::Black));
         board[Position::new(7, 2)] = Some(Piece::Bishop(Color::Black));
@@ -380,19 +399,22 @@ impl ops::Index<Position> for Board {
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "---------------------------------\n").unwrap();
         (0..8).into_iter().rev().for_each(|i| {
-            let row = (0..8).into_iter().fold(String::from("| "), |mut acc, j| {
+            let row = (0..8).into_iter().fold(String::from(""), |mut acc, j| {
                 acc.push_str(&format!(
-                    "{} | ",
-                    self[Position::new(i, j)]
-                        .as_ref()
-                        .map_or(" ".to_string(), |piece| piece.to_string())
+                    "{}",
+                    self[Position::new(i, j)].as_ref().map_or(
+                        match i + j {
+                            sum if sum % 2 == 0 => "□".to_string(),
+                            sum if sum % 2 != 0 => "■".to_string(),
+                            _ => panic!("Unreachable"),
+                        },
+                        |piece| piece.to_string()
+                    )
                 ));
                 acc
             });
             write!(f, "{}\n", row).unwrap();
-            write!(f, "---------------------------------\n").unwrap();
         });
         Ok(())
     }
