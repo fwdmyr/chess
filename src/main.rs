@@ -1,5 +1,8 @@
 use std::fmt;
 use std::io;
+use std::io::Write;
+use std::iter;
+use std::ops::Range;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
@@ -74,6 +77,77 @@ impl Piece {
             Piece::Rook(data, _) => &data.color,
             Piece::Queen(data) => &data.color,
             Piece::King(data, _) => &data.color,
+        }
+    }
+
+    #[rustfmt::skip]
+    pub fn can_reach(&self, position: &Position, is_capture: bool) -> bool {
+        match self {
+            Piece::Pawn(data, has_moved) => Piece::can_reach_pawn(&data.position, position, &data.color, *has_moved, is_capture),
+            Piece::Knight(data) => Piece::can_reach_knight(&data.position, position),
+            Piece::Bishop(data) => Piece::can_reach_bishop(&data.position, position),
+            Piece::Rook(data, _) => Piece::can_reach_rook(&data.position, position),
+            Piece::Queen(data) => Piece::can_reach_queen(&data.position, position),
+            Piece::King(data, has_moved) => Piece::can_reach_king(&data.position, position, *has_moved),
+        }
+    }
+
+    #[rustfmt::skip]
+    fn can_reach_pawn(
+        from: &Position, to: &Position, color: &Color, has_moved: bool, is_capture: bool) -> bool {
+        match color {
+            Color::White => match from.distance_to(to) {
+                Distance { file: 0, rank: 2 } if !has_moved && !is_capture => true,
+                Distance { file: 0, rank: 1 } if !is_capture => true,
+                Distance { file: -1 | 1, rank: 1, } if is_capture => true,
+                _ => false,
+            },
+            Color::Black => match from.distance_to(to) {
+                Distance { file: 0, rank: -2 } if !has_moved && !is_capture => true,
+                Distance { file: 0, rank: -1 } if !is_capture => true,
+                Distance { file: -1 | 1, rank: -1, } if is_capture => true,
+                _ => false,
+            },
+        }
+    }
+
+    #[rustfmt::skip]
+    fn can_reach_knight(from: &Position, to: &Position) -> bool {
+        match from.distance_to(to) {
+            Distance { file: -1 | 1, rank: -2 | 2 } => true,
+            Distance { file: -2 | 2, rank: -1 | 1 } => true,
+            _ => false,
+        }
+    }
+
+    #[rustfmt::skip]
+    fn can_reach_bishop(from: &Position, to: &Position) -> bool {
+        match from.distance_to(to) {
+            Distance { file, rank } if file==rank => true,
+            _ => false,
+        }
+    }
+
+    #[rustfmt::skip]
+    fn can_reach_rook(from: &Position, to: &Position) -> bool {
+        match from.distance_to(to) {
+            Distance { file: _, rank: 0 } => true,
+            Distance { file: 0, rank: _ } => true,
+            _ => false,
+        }
+    }
+
+    #[rustfmt::skip]
+    fn can_reach_queen(from: &Position, to: &Position) -> bool {
+        Piece::can_reach_bishop(from, to) || Piece::can_reach_rook(from, to)
+    }
+
+    #[rustfmt::skip]
+    fn can_reach_king(from: &Position, to: &Position, has_moved: bool) -> bool {
+        match from.distance_to(to) {
+            Distance { file: -1 | 0 | 1, rank: -1 | 0 | 1 } => true,
+            Distance { file: -3 | 2, rank: 0 } if !has_moved => true,
+            _ => false,
         }
     }
 }
@@ -380,10 +454,16 @@ mod tests {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Position {
     file: usize,
     rank: usize,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Distance {
+    pub file: isize,
+    pub rank: isize,
 }
 
 impl Position {
@@ -395,6 +475,39 @@ impl Position {
 
     fn valid(&self) -> bool {
         (self.file < 8) && (self.rank < 8)
+    }
+
+    fn distance_to(&self, other: &Position) -> Distance {
+        Distance {
+            file: other.file as isize - self.file as isize,
+            rank: other.rank as isize - self.rank as isize,
+        }
+    }
+
+    fn path_to(&self, other: &Position) -> impl Iterator<Item = Position> {
+        let from = self.clone();
+        let to = other.clone();
+        match from.distance_to(&to) {
+            Distance { file: 0, rank: _ } => Position::rank_range(from..to),
+            Distance { file: _, rank: 0 } => Position::rank_range(from..to),
+            Distance { file, rank } if file == rank => Position::rank_range(from..to),
+            _ => Position::rank_range(to.clone()..to),
+        }
+    }
+
+    fn file_range(range: Range<Position>) -> impl Iterator<Item = Position> {
+        (range.start.file..range.end.file)
+            .flat_map(move |y| (range.start.rank..range.end.rank).map(move |x| Position::new(x, y)))
+    }
+
+    fn rank_range(range: Range<Position>) -> impl Iterator<Item = Position> {
+        (range.start.file..range.end.file)
+            .flat_map(move |y| (range.start.rank..range.end.rank).map(move |x| Position::new(x, y)))
+    }
+
+    fn diagonal_range(range: Range<Position>) -> impl Iterator<Item = Position> {
+        (range.start.file..range.end.file)
+            .flat_map(move |y| (range.start.rank..range.end.rank).map(move |x| Position::new(x, y)))
     }
 }
 
