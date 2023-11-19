@@ -1,13 +1,15 @@
 use std::fmt;
 use std::io;
-use std::io::Write;
-use std::iter;
 use std::ops::Range;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub enum CatchAllError {
     InvalidPosition,
+    InvalidPath,
+    BlockedPath,
+    EmptyField,
+    UnreachableField,
     BadParse,
 }
 
@@ -15,6 +17,10 @@ impl fmt::Display for CatchAllError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             CatchAllError::InvalidPosition => write!(f, "the position is invalid"),
+            CatchAllError::InvalidPath => write!(f, "the path is invalid"),
+            CatchAllError::BlockedPath => write!(f, "the path is blocked"),
+            CatchAllError::EmptyField => write!(f, "the field is empty"),
+            CatchAllError::UnreachableField => write!(f, "the field is unreachable"),
             CatchAllError::BadParse => write!(f, "could not parse literal"),
         }
     }
@@ -69,6 +75,22 @@ impl Piece {
         }
     }
 
+    pub fn update(&mut self, position: &Position) {
+        match self {
+            Piece::Pawn(ref mut data, ref mut has_moved)
+            | Piece::Rook(ref mut data, ref mut has_moved)
+            | Piece::King(ref mut data, ref mut has_moved) => {
+                data.position = Position::new(position.file, position.rank);
+                *has_moved = true;
+            }
+            Piece::Knight(ref mut data)
+            | Piece::Bishop(ref mut data)
+            | Piece::Queen(ref mut data) => {
+                data.position = Position::new(position.file, position.rank);
+            }
+        }
+    }
+
     pub fn color(&self) -> &Color {
         match self {
             Piece::Pawn(data, _) => &data.color,
@@ -81,7 +103,7 @@ impl Piece {
     }
 
     #[rustfmt::skip]
-    pub fn can_reach(&self, position: &Position, is_capture: bool) -> bool {
+    pub fn can_reach(&self, position: &Position, is_capture: bool) -> Result<(), CatchAllError> {
         match self {
             Piece::Pawn(data, has_moved) => Piece::can_reach_pawn(&data.position, position, &data.color, *has_moved, is_capture),
             Piece::Knight(data) => Piece::can_reach_knight(&data.position, position),
@@ -92,62 +114,83 @@ impl Piece {
         }
     }
 
+    pub fn is_unobstructed(
+        &self,
+        white_pieces: &Vec<Piece>,
+        black_pieces: &Vec<Piece>,
+        path: &Vec<Position>,
+    ) -> Result<(), CatchAllError> {
+        match self {
+            Piece::Knight(_) => Ok(()),
+            _ => path
+                .iter()
+                .any(|position| {
+                    white_pieces
+                        .iter()
+                        .chain(black_pieces.iter())
+                        .any(|piece| piece.position() == position)
+                })
+                .then(|| ())
+                .ok_or(CatchAllError::BlockedPath),
+        }
+    }
+
     #[rustfmt::skip]
     fn can_reach_pawn(
-        from: &Position, to: &Position, color: &Color, has_moved: bool, is_capture: bool) -> bool {
+        from: &Position, to: &Position, color: &Color, has_moved: bool, is_capture: bool) -> Result<(), CatchAllError> {
         match color {
             Color::White => match from.distance_to(to) {
-                Distance { file: 0, rank: 2 } if !has_moved && !is_capture => true,
-                Distance { file: 0, rank: 1 } if !is_capture => true,
-                Distance { file: -1 | 1, rank: 1, } if is_capture => true,
-                _ => false,
+                Distance { file: 0, rank: 2 } if !has_moved && !is_capture => Ok(()),
+                Distance { file: 0, rank: 1 } if !is_capture => Ok(()),
+                Distance { file: -1 | 1, rank: 1, } if is_capture => Ok(()),
+            _ => Err(CatchAllError::UnreachableField),
             },
             Color::Black => match from.distance_to(to) {
-                Distance { file: 0, rank: -2 } if !has_moved && !is_capture => true,
-                Distance { file: 0, rank: -1 } if !is_capture => true,
-                Distance { file: -1 | 1, rank: -1, } if is_capture => true,
-                _ => false,
+                Distance { file: 0, rank: -2 } if !has_moved && !is_capture => Ok(()),
+                Distance { file: 0, rank: -1 } if !is_capture => Ok(()),
+                Distance { file: -1 | 1, rank: -1, } if is_capture => Ok(()),
+            _ => Err(CatchAllError::UnreachableField),
             },
         }
     }
 
     #[rustfmt::skip]
-    fn can_reach_knight(from: &Position, to: &Position) -> bool {
+    fn can_reach_knight(from: &Position, to: &Position) -> Result<(), CatchAllError> {
         match from.distance_to(to) {
-            Distance { file: -1 | 1, rank: -2 | 2 } => true,
-            Distance { file: -2 | 2, rank: -1 | 1 } => true,
-            _ => false,
+            Distance { file: -1 | 1, rank: -2 | 2 } => Ok(()),
+            Distance { file: -2 | 2, rank: -1 | 1 } => Ok(()),
+            _ => Err(CatchAllError::UnreachableField),
         }
     }
 
     #[rustfmt::skip]
-    fn can_reach_bishop(from: &Position, to: &Position) -> bool {
+    fn can_reach_bishop(from: &Position, to: &Position) -> Result<(), CatchAllError> {
         match from.distance_to(to) {
-            Distance { file, rank } if file==rank => true,
-            _ => false,
+            Distance { file, rank } if file==rank => Ok(()),
+            _ => Err(CatchAllError::UnreachableField),
         }
     }
 
     #[rustfmt::skip]
-    fn can_reach_rook(from: &Position, to: &Position) -> bool {
+    fn can_reach_rook(from: &Position, to: &Position) -> Result<(), CatchAllError> {
         match from.distance_to(to) {
-            Distance { file: _, rank: 0 } => true,
-            Distance { file: 0, rank: _ } => true,
-            _ => false,
+            Distance { file: _, rank: 0 } => Ok(()),
+            Distance { file: 0, rank: _ } => Ok(()),
+            _ => Err(CatchAllError::UnreachableField),
         }
     }
 
     #[rustfmt::skip]
-    fn can_reach_queen(from: &Position, to: &Position) -> bool {
-        Piece::can_reach_bishop(from, to) || Piece::can_reach_rook(from, to)
+    fn can_reach_queen(from: &Position, to: &Position) -> Result<(), CatchAllError> {
+        Piece::can_reach_bishop(from, to).and_then(|_| Piece::can_reach_rook(from, to))
     }
 
     #[rustfmt::skip]
-    fn can_reach_king(from: &Position, to: &Position, has_moved: bool) -> bool {
+    fn can_reach_king(from: &Position, to: &Position, has_moved: bool) -> Result<(), CatchAllError> {
         match from.distance_to(to) {
-            Distance { file: -1 | 0 | 1, rank: -1 | 0 | 1 } => true,
-            Distance { file: -3 | 2, rank: 0 } if !has_moved => true,
-            _ => false,
+            Distance { file: -1 | 0 | 1, rank: -1 | 0 | 1 } => Ok(()),
+            Distance { file: -3 | 2, rank: 0 } if !has_moved => Ok(()),
+            _ => Err(CatchAllError::UnreachableField),
         }
     }
 }
@@ -484,30 +527,34 @@ impl Position {
         }
     }
 
-    fn path_to(&self, other: &Position) -> impl Iterator<Item = Position> {
+    #[rustfmt::skip]
+    fn path_to(&self, other: &Position) -> Result<Vec<Position>, CatchAllError> {
         let from = self.clone();
         let to = other.clone();
         match from.distance_to(&to) {
-            Distance { file: 0, rank: _ } => Position::rank_range(from..to),
-            Distance { file: _, rank: 0 } => Position::rank_range(from..to),
-            Distance { file, rank } if file == rank => Position::rank_range(from..to),
-            _ => Position::rank_range(to.clone()..to),
+            Distance { file: 0, rank: 1.. } => Ok(Position::file_path(from..to)),
+            Distance { file: 1.., rank: 0 } => Ok(Position::rank_path(from..to)),
+            Distance { file: f, rank: r } if f == r && f > 0 => Ok(Position::diagonal_path(from..to)),
+            _ => Err(CatchAllError::InvalidPath)
         }
     }
 
-    fn file_range(range: Range<Position>) -> impl Iterator<Item = Position> {
+    fn file_path(range: Range<Position>) -> Vec<Position> {
         (range.start.file..range.end.file)
             .flat_map(move |y| (range.start.rank..range.end.rank).map(move |x| Position::new(x, y)))
+            .collect()
     }
 
-    fn rank_range(range: Range<Position>) -> impl Iterator<Item = Position> {
+    fn rank_path(range: Range<Position>) -> Vec<Position> {
         (range.start.file..range.end.file)
             .flat_map(move |y| (range.start.rank..range.end.rank).map(move |x| Position::new(x, y)))
+            .collect()
     }
 
-    fn diagonal_range(range: Range<Position>) -> impl Iterator<Item = Position> {
+    fn diagonal_path(range: Range<Position>) -> Vec<Position> {
         (range.start.file..range.end.file)
             .flat_map(move |y| (range.start.rank..range.end.rank).map(move |x| Position::new(x, y)))
+            .collect()
     }
 }
 
@@ -571,6 +618,27 @@ impl Board {
         board.white_pieces.push(Piece::Rook(PieceData::new(Position::new(7, 7), Color::Black), false));
 
         board
+    }
+
+    pub fn advance(
+        &mut self,
+        color: &Color,
+        from: &Position,
+        to: &Position,
+    ) -> Result<(), CatchAllError> {
+        let pieces = match color {
+            Color::White => &self.white_pieces,
+            Color::Black => &self.black_pieces,
+        };
+
+        let piece = pieces
+            .iter()
+            .find(|p| p.position() == from)
+            .ok_or(CatchAllError::EmptyField)?;
+
+        piece.update(&to);
+
+        Ok(())
     }
 }
 
