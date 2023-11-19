@@ -531,6 +531,7 @@ impl Position {
     fn path_to(&self, other: &Position) -> Result<Vec<Position>, CatchAllError> {
         let from = self.clone();
         let to = other.clone();
+        todo!("Knight path");
         match from.distance_to(&to) {
             Distance { file: 0, rank: 1.. } => Ok(Position::file_path(from..to)),
             Distance { file: 1.., rank: 0 } => Ok(Position::rank_path(from..to)),
@@ -627,20 +628,21 @@ impl Board {
         to: &Position,
     ) -> Result<(), CatchAllError> {
         let pieces = match color {
-            Color::White => &self.white_pieces,
-            Color::Black => &self.black_pieces,
+            Color::White => &mut self.white_pieces,
+            Color::Black => &mut self.black_pieces,
         };
 
-        let piece = pieces
-            .iter()
+        let piece :&mut Piece = pieces
+            .iter_mut()
             .find(|p| p.position() == from)
             .ok_or(CatchAllError::EmptyField)?;
 
         piece.can_reach(to, false)?;
+        // Add knight path.
         let path = from.path_to(to)?;
         piece.is_unobstructed(&self.white_pieces, &self.black_pieces, &path)?;
 
-        piece.update(&to);
+        //piece.update(&to);
 
         Ok(())
     }
