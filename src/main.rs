@@ -636,6 +636,10 @@ impl Board {
             .find(|p| p.position() == from)
             .ok_or(CatchAllError::EmptyField)?;
 
+        piece.can_reach(to, false)?;
+        let path = from.path_to(to)?;
+        piece.is_unobstructed(&self.white_pieces, &self.black_pieces, &path)?;
+
         piece.update(&to);
 
         Ok(())
