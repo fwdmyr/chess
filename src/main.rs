@@ -87,6 +87,8 @@ impl Piece {
             Piece::Knight(_) => Ok(()),
             _ => path
                 .iter()
+                .rev()
+                .skip(1)
                 .any(|position| pieces.iter().any(|(k, _)| k == position))
                 .eq(&false)
                 .then(|| ())
@@ -343,50 +345,48 @@ pub enum Move {
 }
 
 pub struct Board {
-    white_pieces: HashMap<Position, Piece>,
-    black_pieces: HashMap<Position, Piece>,
+    pieces: HashMap<Position, Piece>,
 }
 
 impl Board {
     #[rustfmt::skip]
     fn new() -> Self {
         let mut board = Self {
-            white_pieces: HashMap::new(),
-            black_pieces: HashMap::new(),
+            pieces: HashMap::new(),
         };
 
-        // board.white_pieces.insert(Position::new(0, 0), Piece::Rook( Color::White, false));
-        // board.white_pieces.insert(Position::new(1, 0), Piece::Knight( Color::White));
-        // board.white_pieces.insert(Position::new(2, 0), Piece::Bishop( Color::White));
-        board.white_pieces.insert(Position::new(3, 0), Piece::Queen( Color::White));
-        // board.white_pieces.insert(Position::new(4, 0), Piece::King( Color::White, false));
-        // board.white_pieces.insert(Position::new(5, 0), Piece::Bishop( Color::White));
-        // board.white_pieces.insert(Position::new(6, 0), Piece::Knight( Color::White));
-        // board.white_pieces.insert(Position::new(7, 0), Piece::Rook( Color::White, false));
-        // board.white_pieces.insert(Position::new(0, 1), Piece::Pawn( Color::White, false));
-        // board.white_pieces.insert(Position::new(1, 1), Piece::Pawn( Color::White, false));
-        // board.white_pieces.insert(Position::new(2, 1), Piece::Pawn( Color::White, false));
-        // board.white_pieces.insert(Position::new(3, 1), Piece::Pawn( Color::White, false));
-        // board.white_pieces.insert(Position::new(4, 1), Piece::Pawn( Color::White, false));
-        // board.white_pieces.insert(Position::new(5, 1), Piece::Pawn( Color::White, false));
-        // board.white_pieces.insert(Position::new(6, 1), Piece::Pawn( Color::White, false));
-        // board.white_pieces.insert(Position::new(7, 1), Piece::Pawn( Color::White, false));
-        // board.black_pieces.insert(Position::new(0, 6), Piece::Pawn( Color::Black, false));
-        // board.black_pieces.insert(Position::new(1, 6), Piece::Pawn( Color::Black, false));
-        // board.black_pieces.insert(Position::new(2, 6), Piece::Pawn( Color::Black, false));
-        // board.black_pieces.insert(Position::new(3, 6), Piece::Pawn( Color::Black, false));
-        // board.black_pieces.insert(Position::new(4, 6), Piece::Pawn( Color::Black, false));
-        // board.black_pieces.insert(Position::new(5, 6), Piece::Pawn( Color::Black, false));
-        // board.black_pieces.insert(Position::new(6, 6), Piece::Pawn( Color::Black, false));
-        // board.black_pieces.insert(Position::new(7, 6), Piece::Pawn( Color::Black, false));
-        // board.black_pieces.insert(Position::new(0, 7), Piece::Rook( Color::Black, false));
-        // board.black_pieces.insert(Position::new(1, 7), Piece::Knight( Color::Black));
-        // board.black_pieces.insert(Position::new(2, 7), Piece::Bishop( Color::Black));
-        board.black_pieces.insert(Position::new(3, 7), Piece::Queen( Color::Black));
-        // board.black_pieces.insert(Position::new(4, 7), Piece::King( Color::Black, false));
-        // board.black_pieces.insert(Position::new(5, 7), Piece::Bishop( Color::Black));
-        // board.black_pieces.insert(Position::new(6, 7), Piece::Knight( Color::Black));
-        // board.black_pieces.insert(Position::new(7, 7), Piece::Rook( Color::Black, false));
+        board.pieces.insert(Position::new(0, 0), Piece::Rook( Color::White, false));
+        board.pieces.insert(Position::new(1, 0), Piece::Knight( Color::White));
+        board.pieces.insert(Position::new(2, 0), Piece::Bishop( Color::White));
+        board.pieces.insert(Position::new(3, 0), Piece::Queen( Color::White));
+        board.pieces.insert(Position::new(4, 0), Piece::King( Color::White, false));
+        board.pieces.insert(Position::new(5, 0), Piece::Bishop( Color::White));
+        board.pieces.insert(Position::new(6, 0), Piece::Knight( Color::White));
+        board.pieces.insert(Position::new(7, 0), Piece::Rook( Color::White, false));
+        board.pieces.insert(Position::new(0, 1), Piece::Pawn( Color::White, false));
+        board.pieces.insert(Position::new(1, 1), Piece::Pawn( Color::White, false));
+        board.pieces.insert(Position::new(2, 1), Piece::Pawn( Color::White, false));
+        board.pieces.insert(Position::new(3, 1), Piece::Pawn( Color::White, false));
+        board.pieces.insert(Position::new(4, 1), Piece::Pawn( Color::White, false));
+        board.pieces.insert(Position::new(5, 1), Piece::Pawn( Color::White, false));
+        board.pieces.insert(Position::new(6, 1), Piece::Pawn( Color::White, false));
+        board.pieces.insert(Position::new(7, 1), Piece::Pawn( Color::White, false));
+        board.pieces.insert(Position::new(0, 6), Piece::Pawn( Color::Black, false));
+        board.pieces.insert(Position::new(1, 6), Piece::Pawn( Color::Black, false));
+        board.pieces.insert(Position::new(2, 6), Piece::Pawn( Color::Black, false));
+        board.pieces.insert(Position::new(3, 6), Piece::Pawn( Color::Black, false));
+        board.pieces.insert(Position::new(4, 6), Piece::Pawn( Color::Black, false));
+        board.pieces.insert(Position::new(5, 6), Piece::Pawn( Color::Black, false));
+        board.pieces.insert(Position::new(6, 6), Piece::Pawn( Color::Black, false));
+        board.pieces.insert(Position::new(7, 6), Piece::Pawn( Color::Black, false));
+        board.pieces.insert(Position::new(0, 7), Piece::Rook( Color::Black, false));
+        board.pieces.insert(Position::new(1, 7), Piece::Knight( Color::Black));
+        board.pieces.insert(Position::new(2, 7), Piece::Bishop( Color::Black));
+        board.pieces.insert(Position::new(3, 7), Piece::Queen( Color::Black));
+        board.pieces.insert(Position::new(4, 7), Piece::King( Color::Black, false));
+        board.pieces.insert(Position::new(5, 7), Piece::Bishop( Color::Black));
+        board.pieces.insert(Position::new(6, 7), Piece::Knight( Color::Black));
+        board.pieces.insert(Position::new(7, 7), Piece::Rook( Color::Black, false));
 
         board
     }
@@ -398,48 +398,43 @@ impl Board {
         to: &Position,
     ) -> Result<(), CatchAllError> {
         {
-            let piece = match color {
-                Color::White => self
-                    .white_pieces
-                    .get(from)
-                    .ok_or(CatchAllError::EmptyField)?,
-                Color::Black => self
-                    .black_pieces
-                    .get(from)
-                    .ok_or(CatchAllError::EmptyField)?,
-            };
+            // Check if piece of correct color is at from position.
+            let piece = self
+                .pieces
+                .get(from)
+                .map_or(Err(CatchAllError::EmptyField), |p| {
+                    if &p.color() == color {
+                        Ok(p)
+                    } else {
+                        Err(CatchAllError::EmptyField)
+                    }
+                })?;
 
-            piece.can_reach(from, to, false)?;
+            // Check if piece is at to.
+            // If piece of opposite color, the action will be capture.
+            // If piece of same color, the path is blocked.
+            let is_capture = self.pieces.get(to).map_or(Ok(false), |p| {
+                if &p.color() == color {
+                    Err(CatchAllError::BlockedPath)
+                } else {
+                    Ok(true)
+                }
+            })?;
+
+            // Check if piece can reach the to position from the from position.
+            piece.can_reach(from, to, is_capture)?;
+
+            // Construct the path the piece can take from to.
             let path = from.path_to(to)?;
 
-            println!("{:?}", path);
-
-            piece.is_unobstructed(&self.white_pieces, &path)?;
-            piece.is_unobstructed(&self.black_pieces, &path)?;
+            // Check if the path from to is unobstructed.
+            piece.is_unobstructed(&self.pieces, &path)?;
         }
 
-        match color {
-            Color::White => {
-                let piece = self
-                    .white_pieces
-                    .remove(from)
-                    .ok_or(CatchAllError::EmptyField)?;
-                self.white_pieces.insert(to.clone(), piece);
-                self.white_pieces
-                    .entry(to.clone())
-                    .and_modify(|v| v.update());
-            }
-            Color::Black => {
-                let piece = self
-                    .black_pieces
-                    .remove(from)
-                    .ok_or(CatchAllError::EmptyField)?;
-                self.black_pieces.insert(to.clone(), piece);
-                self.black_pieces
-                    .entry(to.clone())
-                    .and_modify(|v| v.update());
-            }
-        }
+        // Move the piece from to.
+        let piece = self.pieces.remove(from).ok_or(CatchAllError::EmptyField)?;
+        self.pieces.insert(to.clone(), piece);
+        self.pieces.entry(to.clone()).and_modify(|v| v.update());
 
         Ok(())
     }
@@ -460,12 +455,7 @@ impl fmt::Display for Board {
             ["8".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string()],
         ];
 
-        self.white_pieces.iter().for_each(|(k, v)| {
-            let Position { file: i, rank: j } = k;
-            board[*j+1][*i+1] = v.to_string();
-        });
-
-        self.black_pieces.iter().for_each(|(k, v)| {
+        self.pieces.iter().for_each(|(k, v)| {
             let Position { file: i, rank: j } = k;
             board[*j+1][*i+1] = v.to_string();
         });
