@@ -226,7 +226,7 @@ impl Position {
     fn path_to(&self, other: &Position) -> Result<Vec<Position>, CatchAllError> {
         let from = self.clone();
         let to = other.clone();
-        println!("Path {:?}", from.distance_to(&to));
+        todo!("Find path [from ,to). The last field will be checked for captures.");
         match from.distance_to(&to) {
             Distance { file: 0, rank: 1.. } => Ok(Position::file_path_fwd(from..=to)),
             Distance { file: 0, rank: ..=-1 } => Ok(Position::file_path_rev(from..=to)),
