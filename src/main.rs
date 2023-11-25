@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
-use std::ops::RangeInclusive;
+use std::ops::Range;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
@@ -69,12 +69,12 @@ impl Piece {
     #[rustfmt::skip]
     pub fn can_reach(&self, from: &Position, to: &Position, is_capture: bool) -> Result<(), CatchAllError> {
         match self {
-            Piece::Pawn(color, has_moved) => Piece::can_reach_pawn(from, to, color, *has_moved, is_capture),
+            Piece::Pawn(color, has_moved) => Piece::can_reach_pawn(from, to, color, has_moved.clone(), is_capture),
             Piece::Knight(_) => Piece::can_reach_knight(from, to),
             Piece::Bishop(_) => Piece::can_reach_bishop(from, to),
             Piece::Rook(_, _) => Piece::can_reach_rook(from, to),
             Piece::Queen(_) => Piece::can_reach_queen(from, to),
-            Piece::King(_, has_moved) => Piece::can_reach_king(from, to, *has_moved),
+            Piece::King(_, has_moved) => Piece::can_reach_king(from, to, has_moved.clone()),
         }
     }
 
@@ -85,14 +85,14 @@ impl Piece {
     ) -> Result<(), CatchAllError> {
         match self {
             Piece::Knight(_) => Ok(()),
-            _ => path
-                .iter()
-                .rev()
-                .skip(1)
-                .any(|position| pieces.iter().any(|(k, _)| k == position))
-                .eq(&false)
-                .then(|| ())
-                .ok_or(CatchAllError::BlockedPath),
+            _ => path.iter().rev().skip(1).try_fold((), |_, position| {
+                println!("{:?}", position);
+                pieces
+                    .contains_key(&position)
+                    .eq(&false)
+                    .then(|| ())
+                    .ok_or(CatchAllError::BlockedPath)
+            }),
         }
     }
 
@@ -126,6 +126,8 @@ impl Piece {
 
     #[rustfmt::skip]
     fn can_reach_bishop(from: &Position, to: &Position) -> Result<(), CatchAllError> {
+        println!("{:?}", from.distance_to(to));
+        println!("{:?}", from.path_to(to));
         match from.distance_to(to) {
             Distance { file, rank } if file.abs()==rank.abs() && file != 0 => Ok(()),
             _ => Err(CatchAllError::UnreachableField),
@@ -226,91 +228,95 @@ impl Position {
     fn path_to(&self, other: &Position) -> Result<Vec<Position>, CatchAllError> {
         let from = self.clone();
         let to = other.clone();
-        todo!("Find path [from ,to). The last field will be checked for captures.");
         match from.distance_to(&to) {
-            Distance { file: 0, rank: 1.. } => Ok(Position::file_path_fwd(from..=to)),
-            Distance { file: 0, rank: ..=-1 } => Ok(Position::file_path_rev(from..=to)),
-            Distance { file: 1.., rank: 0 } => Ok(Position::rank_path_fwd(from..=to)),
-            Distance { file: ..=-1, rank: 0 } => Ok(Position::rank_path_rev(from..=to)),
-            Distance { file: f, rank: r } if f.abs() == r.abs() && f > 0 && r > 0 => Ok(Position::diagonal_path_fwd_fwd(from..=to)),
-            Distance { file: f, rank: r } if f.abs() == r.abs() && f > 0 && r < 0 => Ok(Position::diagonal_path_fwd_rev(from..=to)),
-            Distance { file: f, rank: r } if f.abs() == r.abs() && f < 0 && r > 0 => Ok(Position::diagonal_path_rev_fwd(from..=to)),
-            Distance { file: f, rank: r } if f.abs() == r.abs() && f < 0 && r < 0 => Ok(Position::diagonal_path_rev_rev(from..=to)),
+            Distance { file: 0, rank: 1.. } => Ok(Position::file_path_fwd(from..to)),
+            Distance { file: 0, rank: ..=-1 } => Ok(Position::file_path_rev(from..to)),
+            Distance { file: 1.., rank: 0 } => Ok(Position::rank_path_fwd(from..to)),
+            Distance { file: ..=-1, rank: 0 } => Ok(Position::rank_path_rev(from..to)),
+            Distance { file: f, rank: r } if f.abs() == r.abs() && f > 0 && r > 0 => Ok(Position::diagonal_path_fwd_fwd(from..to)),
+            Distance { file: f, rank: r } if f.abs() == r.abs() && f > 0 && r < 0 => Ok(Position::diagonal_path_fwd_rev(from..to)),
+            Distance { file: f, rank: r } if f.abs() == r.abs() && f < 0 && r > 0 => Ok(Position::diagonal_path_rev_fwd(from..to)),
+            Distance { file: f, rank: r } if f.abs() == r.abs() && f < 0 && r < 0 => Ok(Position::diagonal_path_rev_rev(from..to)),
             Distance { file: -2 | 2, rank: -1 | 1 } => Ok(Vec::new()),
             Distance { file: -1 | 1, rank: -2 | 2 } => Ok(Vec::new()),
             _ => Err(CatchAllError::InvalidPath)
         }
     }
 
-    fn file_path_fwd(range: RangeInclusive<Position>) -> Vec<Position> {
-        (range.start().file..=range.end().file)
+    fn file_path_fwd(range: Range<Position>) -> Vec<Position> {
+        (range.start.file..=range.end.file)
             .flat_map(move |x| {
-                (range.start().rank..=range.end().rank)
+                (range.start.rank..=range.end.rank)
                     .skip(1)
                     .map(move |y| Position::new(x, y))
             })
             .collect()
     }
 
-    fn file_path_rev(range: RangeInclusive<Position>) -> Vec<Position> {
-        (range.start().file..=range.end().file)
+    fn file_path_rev(range: Range<Position>) -> Vec<Position> {
+        (range.start.file..=range.end.file)
             .flat_map(move |x| {
-                (range.end().rank..range.start().rank).map(move |y| Position::new(x, y))
+                (range.end.rank..=range.start.rank)
+                    .rev()
+                    .skip(1)
+                    .map(move |y| Position::new(x, y))
             })
             .collect()
     }
 
-    fn rank_path_fwd(range: RangeInclusive<Position>) -> Vec<Position> {
-        (range.start().rank..=range.end().rank)
+    fn rank_path_fwd(range: Range<Position>) -> Vec<Position> {
+        (range.start.rank..=range.end.rank)
             .flat_map(move |y| {
-                (range.start().file..=range.end().file)
+                (range.start.file..=range.end.file)
                     .skip(1)
                     .map(move |x| Position::new(x, y))
             })
             .collect()
     }
 
-    fn rank_path_rev(range: RangeInclusive<Position>) -> Vec<Position> {
-        (range.start().rank..=range.end().file)
+    fn rank_path_rev(range: Range<Position>) -> Vec<Position> {
+        (range.start.rank..=range.end.file)
             .flat_map(move |y| {
-                (range.end().file..range.start().file).map(move |x| Position::new(x, y))
+                (range.end.file..=range.start.file)
+                    .rev()
+                    .skip(1)
+                    .map(move |x| Position::new(x, y))
             })
             .collect()
     }
 
-    fn diagonal_path_fwd_fwd(range: RangeInclusive<Position>) -> Vec<Position> {
-        (range.start().file..=range.end().file)
+    fn diagonal_path_fwd_fwd(range: Range<Position>) -> Vec<Position> {
+        (range.start.file..=range.end.file)
+            .zip(range.start.rank..=range.end.rank)
             .skip(1)
-            .map(move |x| Position::new(x, x))
+            .map(move |(x, y)| Position::new(x, y))
             .collect()
     }
 
-    fn diagonal_path_fwd_rev(range: RangeInclusive<Position>) -> Vec<Position> {
-        let anchor_point = range.start().rank;
-        let v = (range.start().file..=range.end().file)
+    fn diagonal_path_fwd_rev(range: Range<Position>) -> Vec<Position> {
+        (range.start.file..=range.end.file)
+            .zip((range.end.rank..=range.start.rank).rev().into_iter())
             .skip(1)
-            .enumerate()
-            .map(move |(i, x)| Position::new(x, anchor_point - i))
-            .collect();
-        println!("{:?}", v);
-        v
+            .map(move |(x, y)| Position::new(x, y))
+            .collect()
     }
 
-    fn diagonal_path_rev_fwd(range: RangeInclusive<Position>) -> Vec<Position> {
-        let anchor_point = range.end().rank;
-        let v = (range.end().file..=range.start().file)
+    fn diagonal_path_rev_fwd(range: Range<Position>) -> Vec<Position> {
+        (range.end.file..=range.start.file)
+            .rev()
+            .into_iter()
+            .zip(range.start.rank..=range.end.rank)
             .skip(1)
-            .enumerate()
-            .map(move |(i, x)| Position::new(x, anchor_point - i))
-            .collect();
-        println!("{:?}", v);
-        v
+            .map(move |(x, y)| Position::new(x, y))
+            .collect()
     }
 
-    fn diagonal_path_rev_rev(range: RangeInclusive<Position>) -> Vec<Position> {
-        (range.end().file..=range.start().file)
+    fn diagonal_path_rev_rev(range: Range<Position>) -> Vec<Position> {
+        (range.end.file..=range.start.file)
+            .rev()
+            .zip((range.end.rank..=range.start.rank).rev())
             .skip(1)
-            .map(move |x| Position::new(x, x))
+            .map(move |(x, y)| Position::new(x, y))
             .collect()
     }
 }
@@ -425,6 +431,7 @@ impl Board {
             piece.can_reach(from, to, is_capture)?;
 
             // Construct the path the piece can take from to.
+            // Returns the path that defines (from, to].
             let path = from.path_to(to)?;
 
             // Check if the path from to is unobstructed.
