@@ -4,6 +4,7 @@ mod gui;
 mod r#move;
 mod piece;
 mod position;
+mod game;
 
 use gui::Gui;
 use iced::window;

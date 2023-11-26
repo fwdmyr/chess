@@ -6,7 +6,7 @@ pub enum CatchAllError {
     BlockedPath,
     EmptyField,
     UnreachableField,
-    BadParse,
+    InvalidTurn,
 }
 
 impl fmt::Display for CatchAllError {
@@ -16,7 +16,7 @@ impl fmt::Display for CatchAllError {
             CatchAllError::BlockedPath => write!(f, "the path is blocked"),
             CatchAllError::EmptyField => write!(f, "the field is empty"),
             CatchAllError::UnreachableField => write!(f, "the field is unreachable"),
-            CatchAllError::BadParse => write!(f, "could not parse literal"),
+            CatchAllError::InvalidTurn => write!(f, "the turn is invalid"),
         }
     }
 }

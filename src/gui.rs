@@ -1,10 +1,11 @@
-use crate::board::Board;
+use crate::game::Game;
+use crate::game::Turn;
 use crate::piece::Color;
 use crate::position::Position;
 
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::{button, Column, Container, Row, Text};
-use iced::{theme, Alignment, Element, Length, Sandbox, Theme};
+use iced::widget::{button, Button, Column, Container, Row, Text};
+use iced::{theme, Alignment, Element, Length, Renderer, Sandbox, Theme};
 
 macro_rules! rgb {
     ($r:expr, $g:expr, $b:expr) => {
@@ -17,18 +18,13 @@ const DARK_SQUARE: iced::Color = rgb!(181, 136, 99);
 const HIGHLIGHTED_SQUARE: iced::Color = rgb!(255, 0, 0);
 
 struct Square {
-    file: usize,
-    rank: usize,
-    is_from: bool,
+    position: Position,
+    turn: Turn,
 }
 
 impl Square {
-    fn new(pos: &Position, from: &Position) -> Self {
-        Self {
-            file: pos.file(),
-            rank: pos.rank(),
-            is_from: pos == from,
-        }
+    fn new(position: Position, turn: Turn) -> Self {
+        Self { position, turn }
     }
 }
 
@@ -36,14 +32,12 @@ impl button::StyleSheet for Square {
     type Style = Theme;
 
     fn active(&self, _: &Self::Style) -> button::Appearance {
-        let color = match (self.file + self.rank) % 2 {
-            0 => LIGHT_SQUARE,
-            1 => DARK_SQUARE,
-            _ => panic!(),
-        };
-        let color = match self.is_from {
-            true => HIGHLIGHTED_SQUARE,
-            false => color,
+        let color = match self.turn {
+            Turn::Select(_, pos) if self.position.eq(&pos) => HIGHLIGHTED_SQUARE,
+            _ => match Color::from(self.position) {
+                Color::White => LIGHT_SQUARE,
+                Color::Black => DARK_SQUARE,
+            },
         };
 
         button::Appearance {
@@ -61,20 +55,12 @@ impl button::StyleSheet for Square {
 }
 
 pub struct Gui {
-    board: Board,
-    from: Position,
-    to: Position,
-    turn_state: TurnState,
+    game: Game,
 }
 
 impl Default for Gui {
     fn default() -> Self {
-        Self {
-            board: Board::new(),
-            from: Position::default(),
-            to: Position::default(),
-            turn_state: TurnState::From(Color::White),
-        }
+        Self { game: Game::new() }
     }
 }
 
@@ -83,10 +69,48 @@ pub enum Message {
     Move(Position),
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum TurnState {
-    From(Color),
-    To(Color),
+pub trait Decorate {
+    type Output;
+    fn decorate(self) -> Self::Output;
+}
+
+impl<'a> Decorate for Text<'a, Renderer> {
+    type Output = Text<'a, Renderer>;
+    fn decorate(self) -> Self::Output {
+        self.horizontal_alignment(Horizontal::Center)
+            .vertical_alignment(Vertical::Center)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .size(75)
+    }
+}
+
+impl<'a> Decorate for Button<'a, Message, Renderer> {
+    type Output = Button<'a, Message, Renderer>;
+    fn decorate(self) -> Self::Output {
+        self.height(100).width(100)
+    }
+}
+
+impl<'a> Decorate for Container<'a, Message, Renderer> {
+    type Output = Container<'a, Message, Renderer>;
+    fn decorate(self) -> Self::Output {
+        self.width(Length::Shrink).height(Length::Shrink)
+    }
+}
+
+impl<'a> Decorate for Row<'a, Message, Renderer> {
+    type Output = Row<'a, Message, Renderer>;
+    fn decorate(self) -> Self::Output {
+        self.align_items(Alignment::Center)
+    }
+}
+
+impl<'a> Decorate for Column<'a, Message, Renderer> {
+    type Output = Column<'a, Message, Renderer>;
+    fn decorate(self) -> Self::Output {
+        self.align_items(Alignment::Center)
+    }
 }
 
 impl Sandbox for Gui {
@@ -105,71 +129,44 @@ impl Sandbox for Gui {
             Message::Move(pos) => pos,
         };
 
-        match self.turn_state {
-            TurnState::From(_) => {
-                self.from = pos;
-            }
-            TurnState::To(_) => {
-                self.to = pos;
-            }
-        };
-
-        let res = match self.turn_state {
-            TurnState::To(color) => self.board.advance(&color, &self.from, &self.to),
-            TurnState::From(_) => Ok(()),
-        };
-
-        match (res, self.turn_state.clone()) {
-            (Ok(_), TurnState::To(color)) => {
-                self.turn_state = match color {
-                    Color::White => TurnState::From(Color::Black),
-                    Color::Black => TurnState::From(Color::White),
-                }
-            }
-            (Err(e), TurnState::To(color)) => {
-                self.turn_state = TurnState::From(color);
-                println!("{}", e);
-            }
-            (Ok(_), TurnState::From(color)) => {
-                self.turn_state = TurnState::To(color);
-            }
-            _ => panic!(),
+        if let Err(e) = self.game.advance(&pos) {
+            println!("{}", e);
         }
     }
 
     fn view(&self) -> Element<Message> {
-        let mut column = Column::new().align_items(Alignment::Center);
+        // TODO: Get pos if in Select stage and color it.
+        //
+
+        let mut column = Column::new().decorate();
         for rank in (0..8).rev() {
-            let mut row = Row::new().align_items(Alignment::Center);
+            let mut row = Row::new().decorate();
             for file in 0..8 {
-                let color = self.board.at(&Position::new(file, rank)).map_or(
-                    iced::Color::WHITE,
-                    |p| match p.color() {
+                let pos = Position::new(file, rank);
+                let turn = self.game.turn();
+                let theme = theme::Button::custom(Square::new(pos, turn));
+                let mut text = Text::new("");
+
+                let res = self.game.at(&Position::new(file, rank));
+
+                if let Ok(piece) = res {
+                    let color = match piece.color() {
                         Color::White => iced::Color::WHITE,
                         Color::Black => iced::Color::BLACK,
-                    },
-                );
+                    };
+                    text = Text::new(piece.to_string()).style(color).decorate();
+                }
+
                 row = row.push(
-                    button(
-                        Text::new(self.board.draw(&Position::new(file, rank)))
-                            .horizontal_alignment(Horizontal::Center)
-                            .vertical_alignment(Vertical::Center)
-                            .width(Length::Fill)
-                            .height(Length::Fill)
-                            .size(75)
-                            .style(color),
-                    )
-                    .style(theme::Button::custom(Square::new(
-                        &Position::new(file, rank),
-                        &self.from,
-                    )))
-                    .height(100)
-                    .width(100)
-                    .on_press(Message::Move(Position::new(file, rank))),
+                    button(text)
+                        .style(theme)
+                        .decorate()
+                        .on_press(Message::Move(pos)),
                 );
             }
             column = column.push(row);
         }
+
         Container::new(column)
             .width(Length::Shrink)
             .height(Length::Shrink)

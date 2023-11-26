@@ -1,7 +1,6 @@
 use crate::error::CatchAllError;
 use crate::r#move::Direction;
 use crate::r#move::Move;
-use std::str::FromStr;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct Position {
@@ -125,21 +124,5 @@ impl Position {
             .rev()
             .map(move |(f, r)| Position::new(f, r))
             .collect()
-    }
-}
-
-impl FromStr for Position {
-    type Err = CatchAllError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let file = s[0..1]
-            .to_lowercase()
-            .parse::<char>()
-            .map_err(|_| CatchAllError::BadParse)?;
-        let rank = s[1..2]
-            .parse::<usize>()
-            .map_err(|_| CatchAllError::BadParse)?;
-
-        Ok(Position::new(file as usize - 97, rank - 1))
     }
 }

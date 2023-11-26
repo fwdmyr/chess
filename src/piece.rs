@@ -1,10 +1,21 @@
 use crate::error::CatchAllError;
+use crate::position::Position;
 use crate::r#move::{Action, Direction, Move};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Color {
     White,
     Black,
+}
+
+impl From<Position> for Color {
+    fn from(position: Position) -> Self {
+        if (position.file() + position.rank()) % 2 == 0 {
+            Color::White
+        } else {
+            Color::Black
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
