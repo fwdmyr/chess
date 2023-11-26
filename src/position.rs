@@ -2,16 +2,16 @@ use crate::error::CatchAllError;
 use crate::r#move::Direction;
 use crate::r#move::Move;
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-pub struct Position {
-    file: usize,
-    rank: usize,
-}
-
 #[derive(Debug, PartialEq)]
 pub struct Distance {
     pub file: isize,
     pub rank: isize,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+pub struct Position {
+    file: usize,
+    rank: usize,
 }
 
 impl Default for Position {
@@ -33,10 +33,6 @@ impl Position {
 
     pub fn rank(&self) -> usize {
         self.rank
-    }
-
-    fn valid(&self) -> bool {
-        (self.file < 8) && (self.rank < 8)
     }
 
     pub fn distance_to(&self, other: &Position) -> Distance {
@@ -124,5 +120,9 @@ impl Position {
             .rev()
             .map(move |(f, r)| Position::new(f, r))
             .collect()
+    }
+
+    fn valid(&self) -> bool {
+        (self.file < 8) && (self.rank < 8)
     }
 }

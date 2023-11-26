@@ -51,6 +51,14 @@ impl Board {
         board
     }
 
+    #[rustfmt::skip]
+    pub fn advance(&mut self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
+        self.assess_turn(color, from, to)?;
+        self.update(from, to)?;
+
+        Ok(())
+    }
+
     pub fn at(&self, pos: &Position) -> Result<&Piece, CatchAllError> {
         self.pieces
             .get(pos)
@@ -83,18 +91,18 @@ impl Board {
             .ok_or(CatchAllError::BlockedPath)
     }
 
-    fn assess_move(&self, pos: &Position, mv: &Move) -> Result<(), CatchAllError> {
-        pos.path(mv)?
-            .iter()
-            .try_fold((), |_, position| self.has_piece(position))
-    }
-
     fn update(&mut self, from: &Position, to: &Position) -> Result<(), CatchAllError> {
         let mut piece = self.pieces.remove(from).ok_or(CatchAllError::EmptyField)?;
         piece.update();
         self.pieces.insert(to.clone(), piece);
 
         Ok(())
+    }
+
+    fn assess_move(&self, pos: &Position, mv: &Move) -> Result<(), CatchAllError> {
+        pos.path(mv)?
+            .iter()
+            .try_fold((), |_, position| self.has_piece(position))
     }
 
     #[rustfmt::skip]
@@ -115,19 +123,5 @@ impl Board {
         self.assess_move(from, &mv)?;
 
         Ok(())
-    }
-
-    #[rustfmt::skip]
-    pub fn advance(&mut self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
-        self.assess_turn(color, from, to)?;
-        self.update(from, to)?;
-
-        Ok(())
-    }
-
-    pub fn draw(&self, pos: &Position) -> String {
-        self.pieces
-            .get(pos)
-            .map_or("".to_string(), |p| p.to_string())
     }
 }

@@ -17,58 +17,6 @@ const LIGHT_SQUARE: iced::Color = rgb!(240, 217, 181);
 const DARK_SQUARE: iced::Color = rgb!(181, 136, 99);
 const HIGHLIGHTED_SQUARE: iced::Color = rgb!(255, 0, 0);
 
-struct Square {
-    position: Position,
-    turn: Turn,
-}
-
-impl Square {
-    fn new(position: Position, turn: Turn) -> Self {
-        Self { position, turn }
-    }
-}
-
-impl button::StyleSheet for Square {
-    type Style = Theme;
-
-    fn active(&self, _: &Self::Style) -> button::Appearance {
-        let color = match self.turn {
-            Turn::Select(_, pos) if self.position.eq(&pos) => HIGHLIGHTED_SQUARE,
-            _ => match Color::from(self.position) {
-                Color::White => LIGHT_SQUARE,
-                Color::Black => DARK_SQUARE,
-            },
-        };
-
-        button::Appearance {
-            background: Some(iced::Background::Color(color)),
-            ..Default::default()
-        }
-    }
-
-    fn pressed(&self, _: &Self::Style) -> button::Appearance {
-        button::Appearance {
-            background: Some(iced::Background::Color(HIGHLIGHTED_SQUARE)),
-            ..Default::default()
-        }
-    }
-}
-
-pub struct Gui {
-    game: Game,
-}
-
-impl Default for Gui {
-    fn default() -> Self {
-        Self { game: Game::new() }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Message {
-    Move(Position),
-}
-
 pub trait Decorate {
     type Output;
     fn decorate(self) -> Self::Output;
@@ -113,6 +61,82 @@ impl<'a> Decorate for Column<'a, Message, Renderer> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Message {
+    Move(Position),
+}
+
+struct Square {
+    position: Position,
+    turn: Turn,
+}
+
+impl Square {
+    fn new(position: Position, turn: Turn) -> Self {
+        Self { position, turn }
+    }
+}
+
+impl button::StyleSheet for Square {
+    type Style = Theme;
+
+    fn active(&self, _: &Self::Style) -> button::Appearance {
+        let color = match self.turn {
+            Turn::Select(_, pos) if self.position.eq(&pos) => HIGHLIGHTED_SQUARE,
+            _ => match Color::from(self.position) {
+                Color::White => LIGHT_SQUARE,
+                Color::Black => DARK_SQUARE,
+            },
+        };
+
+        button::Appearance {
+            background: Some(iced::Background::Color(color)),
+            ..Default::default()
+        }
+    }
+
+    fn pressed(&self, _: &Self::Style) -> button::Appearance {
+        button::Appearance {
+            background: Some(iced::Background::Color(HIGHLIGHTED_SQUARE)),
+            ..Default::default()
+        }
+    }
+}
+
+pub struct Gui {
+    game: Game,
+}
+
+impl Gui {
+    fn square_view<'a>(&self, pos: Position) -> Button<'a, Message, Renderer> {
+        let turn = self.game.turn();
+        let theme = theme::Button::custom(Square::new(pos, turn));
+
+        let mut text = Text::new("");
+
+        let res = self.game.at(&pos);
+
+        if let Ok(piece) = res {
+            let color = match piece.color() {
+                Color::White => iced::Color::WHITE,
+                Color::Black => iced::Color::BLACK,
+            };
+            text = Text::new(piece.to_string()).style(color).decorate();
+        }
+
+        button(text)
+            .style(theme)
+            .decorate()
+            .on_press(Message::Move(pos))
+    }
+}
+
+impl Default for Gui {
+    fn default() -> Self {
+        Self { game: Game::new() }
+    }
+}
+
 impl Sandbox for Gui {
     type Message = Message;
 
@@ -135,41 +159,16 @@ impl Sandbox for Gui {
     }
 
     fn view(&self) -> Element<Message> {
-        // TODO: Get pos if in Select stage and color it.
-        //
-
         let mut column = Column::new().decorate();
         for rank in (0..8).rev() {
             let mut row = Row::new().decorate();
             for file in 0..8 {
-                let pos = Position::new(file, rank);
-                let turn = self.game.turn();
-                let theme = theme::Button::custom(Square::new(pos, turn));
-                let mut text = Text::new("");
-
-                let res = self.game.at(&Position::new(file, rank));
-
-                if let Ok(piece) = res {
-                    let color = match piece.color() {
-                        Color::White => iced::Color::WHITE,
-                        Color::Black => iced::Color::BLACK,
-                    };
-                    text = Text::new(piece.to_string()).style(color).decorate();
-                }
-
-                row = row.push(
-                    button(text)
-                        .style(theme)
-                        .decorate()
-                        .on_press(Message::Move(pos)),
-                );
+                let button = self.square_view(Position::new(file, rank));
+                row = row.push(button);
             }
             column = column.push(row);
         }
 
-        Container::new(column)
-            .width(Length::Shrink)
-            .height(Length::Shrink)
-            .into()
+        Container::new(column).decorate().into()
     }
 }

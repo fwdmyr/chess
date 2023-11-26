@@ -23,14 +23,6 @@ impl Game {
         }
     }
 
-    pub fn at(&self, pos: &Position) -> Result<&Piece, CatchAllError> {
-        self.board.at(pos)
-    }
-
-    pub fn turn(&self) -> Turn {
-        self.turn
-    }
-
     pub fn advance(&mut self, pos: &Position) -> Result<(), CatchAllError> {
         self.turn = match self.turn {
             Turn::New(_) => self.select(pos)?,
@@ -38,6 +30,14 @@ impl Game {
         };
 
         Ok(())
+    }
+
+    pub fn at(&self, pos: &Position) -> Result<&Piece, CatchAllError> {
+        self.board.at(pos)
+    }
+
+    pub fn turn(&self) -> Turn {
+        self.turn
     }
 
     fn select(&self, pos: &Position) -> Result<Turn, CatchAllError> {
