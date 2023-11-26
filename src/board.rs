@@ -3,7 +3,6 @@ use crate::piece::{Color, Piece, State};
 use crate::position::Position;
 use crate::r#move::{Action, Move};
 use std::collections::HashMap;
-use std::fmt;
 
 pub struct Board {
     pieces: HashMap<Position, Piece>,
@@ -50,6 +49,12 @@ impl Board {
         board.pieces.insert(Position::new(7, 7), Piece::Rook( Color::Black, State::Initial));
 
         board
+    }
+
+    pub fn at(&self, pos: &Position) -> Result<&Piece, CatchAllError> {
+        self.pieces
+            .get(pos)
+            .map_or(Err(CatchAllError::EmptyField), |p| Ok(p))
     }
 
     fn piece_at(&self, pos: &Position, color: &Color) -> Result<&Piece, CatchAllError> {
@@ -119,34 +124,10 @@ impl Board {
 
         Ok(())
     }
-}
 
-impl fmt::Display for Board {
-    #[rustfmt::skip]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut board: [[String; 9]; 9] = [
-            [" ".to_string(), "A".to_string(), "B".to_string(), "C".to_string(), "D".to_string(), "E".to_string(), "F".to_string(), "G".to_string(), "H".to_string()],
-            ["1".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string()],
-            ["2".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string()],
-            ["3".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string()],
-            ["4".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string()],
-            ["5".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string()],
-            ["6".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string()],
-            ["7".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string()],
-            ["8".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string(), "■".to_string(), "□".to_string()],
-        ];
-
-        self.pieces.iter().for_each(|(k, v)| {
-            board[k.rank() + 1][k.file() + 1] = v.to_string();
-        });
-
-        board.iter().rev().for_each(|rank| {
-            let line = rank
-                .iter()
-                .fold("".to_string(), |acc, square| acc + &square.to_string());
-            writeln!(f, "{}", line).unwrap();
-        });
-
-        Ok(())
+    pub fn draw(&self, pos: &Position) -> String {
+        self.pieces
+            .get(pos)
+            .map_or("".to_string(), |p| p.to_string())
     }
 }

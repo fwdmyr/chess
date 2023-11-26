@@ -119,30 +119,12 @@ impl Piece {
 impl ToString for Piece {
     fn to_string(&self) -> String {
         match self {
-            Piece::Pawn(color, _) => match color {
-                Color::White => "♟".to_string(),
-                Color::Black => "♙".to_string(),
-            },
-            Piece::Knight(color) => match color {
-                Color::White => "♞".to_string(),
-                Color::Black => "♘".to_string(),
-            },
-            Piece::Bishop(color) => match color {
-                Color::White => "♝".to_string(),
-                Color::Black => "♗".to_string(),
-            },
-            Piece::Rook(color, _) => match color {
-                Color::White => "♜".to_string(),
-                Color::Black => "♖".to_string(),
-            },
-            Piece::Queen(color) => match color {
-                Color::White => "♛".to_string(),
-                Color::Black => "♕".to_string(),
-            },
-            Piece::King(color, _) => match color {
-                Color::White => "♚".to_string(),
-                Color::Black => "♔".to_string(),
-            },
+            Piece::Pawn(_, _) => "♟".to_string(),
+            Piece::Knight(_) => "♞".to_string(),
+            Piece::Bishop(_) => "♝".to_string(),
+            Piece::Rook(_, _) => "♜".to_string(),
+            Piece::Queen(_) => "♛".to_string(),
+            Piece::King(_, _) => "♚".to_string(),
         }
     }
 }

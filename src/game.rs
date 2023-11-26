@@ -19,7 +19,6 @@ impl Game {
 
     pub fn run(&mut self) -> Result<(), CatchAllError> {
         println!("The game has started.");
-        println!("{}", self.board);
 
         let mut color = Color::White;
 
@@ -55,8 +54,6 @@ impl Game {
                 Color::White => Color::Black,
                 Color::Black => Color::White,
             };
-
-            println!("{}", self.board);
         }
     }
 }
