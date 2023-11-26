@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
-use std::ops::Range;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
@@ -33,23 +32,29 @@ pub enum Color {
     Black,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum State {
+    Initial,
+    Moved,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Piece {
-    Pawn(Color, bool),
+    Pawn(Color, State),
     Knight(Color),
     Bishop(Color),
-    Rook(Color, bool),
+    Rook(Color, State),
     Queen(Color),
-    King(Color, bool),
+    King(Color, State),
 }
 
 impl Piece {
     pub fn update(&mut self) {
         match self {
-            Piece::Pawn(_, ref mut has_moved)
-            | Piece::Rook(_, ref mut has_moved)
-            | Piece::King(_, ref mut has_moved) => {
-                *has_moved = true;
+            Piece::Pawn(_, ref mut state)
+            | Piece::Rook(_, ref mut state)
+            | Piece::King(_, ref mut state) => {
+                *state = State::Moved;
             }
             _ => (),
         }
@@ -66,98 +71,71 @@ impl Piece {
         }
     }
 
-    #[rustfmt::skip]
-    pub fn can_reach(&self, from: &Position, to: &Position, is_capture: bool) -> Result<(), CatchAllError> {
+    pub fn can_reach(&self, mv: &Move) -> Result<(), CatchAllError> {
         match self {
-            Piece::Pawn(color, has_moved) => Piece::can_reach_pawn(from, to, color, has_moved.clone(), is_capture),
-            Piece::Knight(_) => Piece::can_reach_knight(from, to),
-            Piece::Bishop(_) => Piece::can_reach_bishop(from, to),
-            Piece::Rook(_, _) => Piece::can_reach_rook(from, to),
-            Piece::Queen(_) => Piece::can_reach_queen(from, to),
-            Piece::King(_, has_moved) => Piece::can_reach_king(from, to, has_moved.clone()),
-        }
-    }
-
-    pub fn is_unobstructed(
-        &self,
-        pieces: &HashMap<Position, Piece>,
-        path: &Vec<Position>,
-    ) -> Result<(), CatchAllError> {
-        match self {
-            Piece::Knight(_) => Ok(()),
-            _ => path.iter().rev().skip(1).try_fold((), |_, position| {
-                println!("{:?}", position);
-                pieces
-                    .contains_key(&position)
-                    .eq(&false)
-                    .then(|| ())
-                    .ok_or(CatchAllError::BlockedPath)
-            }),
+            Piece::Pawn(color, state) => Piece::can_reach_pawn(mv, color, state),
+            Piece::Knight(_) => Piece::can_reach_knight(mv),
+            Piece::Bishop(_) => Piece::can_reach_bishop(mv),
+            Piece::Rook(_, _) => Piece::can_reach_rook(mv),
+            Piece::Queen(_) => Piece::can_reach_queen(mv),
+            Piece::King(_, state) => Piece::can_reach_king(mv, state),
         }
     }
 
     #[rustfmt::skip]
-    fn can_reach_pawn(
-        from: &Position, to: &Position, color: &Color, has_moved: bool, is_capture: bool) -> Result<(), CatchAllError> {
-        match color {
-            Color::White => match from.distance_to(to) {
-                Distance { file: 0, rank: 2 } if !has_moved && !is_capture => Ok(()),
-                Distance { file: 0, rank: 1 } if !is_capture => Ok(()),
-                Distance { file: -1 | 1, rank: 1, } if is_capture => Ok(()),
-            _ => Err(CatchAllError::UnreachableField),
-            },
-            Color::Black => match from.distance_to(to) {
-                Distance { file: 0, rank: -2 } if !has_moved && !is_capture => Ok(()),
-                Distance { file: 0, rank: -1 } if !is_capture => Ok(()),
-                Distance { file: -1 | 1, rank: -1, } if is_capture => Ok(()),
-            _ => Err(CatchAllError::UnreachableField),
-            },
-        }
-    }
-
-    #[rustfmt::skip]
-    fn can_reach_knight(from: &Position, to: &Position) -> Result<(), CatchAllError> {
-        match from.distance_to(to) {
-            Distance { file: -1 | 1, rank: -2 | 2 } => Ok(()),
-            Distance { file: -2 | 2, rank: -1 | 1 } => Ok(()),
+    fn can_reach_pawn(mv: &Move, color: &Color, state: &State) -> Result<(), CatchAllError> {
+        println!("{:?}", mv);
+        match (mv, color, state) {
+            (Move::Straight(Direction::Up, 2, Action::Regular), Color::White, State::Initial) => Ok(()),
+            (Move::Straight(Direction::Up, 1, Action::Regular), Color::White, _) => Ok(()),
+            (Move::Diagonal(Direction::Up, Direction::Left | Direction::Right, 1, Action::Capture), Color::White, _) => Ok(()),
+            (Move::Straight(Direction::Down, 2, Action::Regular), Color::Black, State::Initial) => Ok(()),
+            (Move::Straight(Direction::Down, 1, Action::Regular), Color::Black, _) => Ok(()),
+            (Move::Diagonal(Direction::Down, Direction::Left | Direction::Right, 1, Action::Capture), Color::Black, _) => Ok(()),
             _ => Err(CatchAllError::UnreachableField),
         }
     }
 
     #[rustfmt::skip]
-    fn can_reach_bishop(from: &Position, to: &Position) -> Result<(), CatchAllError> {
-        println!("{:?}", from.distance_to(to));
-        println!("{:?}", from.path_to(to));
-        match from.distance_to(to) {
-            Distance { file, rank } if file.abs()==rank.abs() && file != 0 => Ok(()),
+    fn can_reach_knight(mv: &Move) -> Result<(), CatchAllError> {
+        match mv {
+            Move::Jump(_) => Ok(()),
             _ => Err(CatchAllError::UnreachableField),
         }
     }
 
     #[rustfmt::skip]
-    fn can_reach_rook(from: &Position, to: &Position) -> Result<(), CatchAllError> {
-        match from.distance_to(to) {
-            Distance { file: _, rank: 0 } => Ok(()),
-            Distance { file: 0, rank: _ } => Ok(()),
+    fn can_reach_bishop(mv: &Move) -> Result<(), CatchAllError> {
+        match mv {
+            Move::Diagonal(_, _, _, _) => Ok(()),
             _ => Err(CatchAllError::UnreachableField),
         }
     }
 
     #[rustfmt::skip]
-    fn can_reach_queen(from: &Position, to: &Position) -> Result<(), CatchAllError> {
-        match from.distance_to(to) {
-            Distance { file, rank } if file.abs()==rank.abs() && file!=0 => Ok(()),
-            Distance { file: _, rank: 0 } => Ok(()),
-            Distance { file: 0, rank: _ } => Ok(()),
+    fn can_reach_rook(mv: &Move) -> Result<(), CatchAllError> {
+        match mv {
+            Move::Straight(_, _, _) => Ok(()),
             _ => Err(CatchAllError::UnreachableField),
         }
     }
 
     #[rustfmt::skip]
-    fn can_reach_king(from: &Position, to: &Position, has_moved: bool) -> Result<(), CatchAllError> {
-        match from.distance_to(to) {
-            Distance { file: -1 | 0 | 1, rank: -1 | 0 | 1 } => Ok(()),
-            Distance { file: -3 | 2, rank: 0 } if !has_moved => Ok(()),
+    fn can_reach_queen(mv: &Move) -> Result<(), CatchAllError> {
+        match mv {
+            Move::Straight(_, _, _) => Ok(()),
+            Move::Diagonal(_, _, _, _) => Ok(()),
+            _ => Err(CatchAllError::UnreachableField),
+        }
+    }
+
+    #[rustfmt::skip]
+    fn can_reach_king(mv: &Move, state: &State) -> Result<(), CatchAllError> {
+        match (mv, state) {
+            (Move::Straight(_, 1, _), _) => Ok(()),
+            (Move::Diagonal(_, _, 1, _), _) => Ok(()),
+            (Move::Straight(Direction::Left, 3, Action::Regular), State::Initial) => Ok(()),
+            (Move::Straight(Direction::Right, 2, Action::Regular), State::Initial) => Ok(()),
             _ => Err(CatchAllError::UnreachableField),
         }
     }
@@ -225,98 +203,82 @@ impl Position {
     }
 
     #[rustfmt::skip]
-    fn path_to(&self, other: &Position) -> Result<Vec<Position>, CatchAllError> {
-        let from = self.clone();
-        let to = other.clone();
-        match from.distance_to(&to) {
-            Distance { file: 0, rank: 1.. } => Ok(Position::file_path_fwd(from..to)),
-            Distance { file: 0, rank: ..=-1 } => Ok(Position::file_path_rev(from..to)),
-            Distance { file: 1.., rank: 0 } => Ok(Position::rank_path_fwd(from..to)),
-            Distance { file: ..=-1, rank: 0 } => Ok(Position::rank_path_rev(from..to)),
-            Distance { file: f, rank: r } if f.abs() == r.abs() && f > 0 && r > 0 => Ok(Position::diagonal_path_fwd_fwd(from..to)),
-            Distance { file: f, rank: r } if f.abs() == r.abs() && f > 0 && r < 0 => Ok(Position::diagonal_path_fwd_rev(from..to)),
-            Distance { file: f, rank: r } if f.abs() == r.abs() && f < 0 && r > 0 => Ok(Position::diagonal_path_rev_fwd(from..to)),
-            Distance { file: f, rank: r } if f.abs() == r.abs() && f < 0 && r < 0 => Ok(Position::diagonal_path_rev_rev(from..to)),
-            Distance { file: -2 | 2, rank: -1 | 1 } => Ok(Vec::new()),
-            Distance { file: -1 | 1, rank: -2 | 2 } => Ok(Vec::new()),
-            _ => Err(CatchAllError::InvalidPath)
+    fn path(&self, mv: &Move) -> Result<Vec<Self>, CatchAllError> {
+        match mv {
+            Move::Straight(Direction::Up, steps, _) => Ok(self.path_up(steps.clone())),
+            Move::Straight(Direction::Down, steps, _) => Ok(self.path_down(steps.clone())),
+            Move::Straight(Direction::Right, steps, _) => Ok(self.path_right(steps.clone())),
+            Move::Straight(Direction::Left, steps, _) => Ok(self.path_left(steps.clone())),
+            Move::Diagonal(Direction::Up, Direction::Right, steps, _) => Ok(self.path_up_right(steps.clone())),
+            Move::Diagonal(Direction::Up, Direction::Left, steps, _) => Ok(self.path_up_left(steps.clone())),
+            Move::Diagonal(Direction::Down, Direction::Right, steps, _) => Ok(self.path_down_right(steps.clone())),
+            Move::Diagonal(Direction::Down, Direction::Left, steps, _) => Ok(self.path_down_left(steps.clone())),
+            Move::Jump(_) => Ok(Vec::new()),
+            _ => Err(CatchAllError::InvalidPath),
         }
     }
 
-    fn file_path_fwd(range: Range<Position>) -> Vec<Position> {
-        (range.start.file..=range.end.file)
-            .flat_map(move |x| {
-                (range.start.rank..=range.end.rank)
-                    .skip(1)
-                    .map(move |y| Position::new(x, y))
-            })
-            .collect()
-    }
-
-    fn file_path_rev(range: Range<Position>) -> Vec<Position> {
-        (range.start.file..=range.end.file)
-            .flat_map(move |x| {
-                (range.end.rank..=range.start.rank)
-                    .rev()
-                    .skip(1)
-                    .map(move |y| Position::new(x, y))
-            })
-            .collect()
-    }
-
-    fn rank_path_fwd(range: Range<Position>) -> Vec<Position> {
-        (range.start.rank..=range.end.rank)
-            .flat_map(move |y| {
-                (range.start.file..=range.end.file)
-                    .skip(1)
-                    .map(move |x| Position::new(x, y))
-            })
-            .collect()
-    }
-
-    fn rank_path_rev(range: Range<Position>) -> Vec<Position> {
-        (range.start.rank..=range.end.file)
-            .flat_map(move |y| {
-                (range.end.file..=range.start.file)
-                    .rev()
-                    .skip(1)
-                    .map(move |x| Position::new(x, y))
-            })
-            .collect()
-    }
-
-    fn diagonal_path_fwd_fwd(range: Range<Position>) -> Vec<Position> {
-        (range.start.file..=range.end.file)
-            .zip(range.start.rank..=range.end.rank)
+    fn path_up(&self, steps: usize) -> Vec<Self> {
+        (self.rank..self.rank + steps)
             .skip(1)
-            .map(move |(x, y)| Position::new(x, y))
+            .map(move |r| Position::new(self.file, r))
             .collect()
     }
 
-    fn diagonal_path_fwd_rev(range: Range<Position>) -> Vec<Position> {
-        (range.start.file..=range.end.file)
-            .zip((range.end.rank..=range.start.rank).rev().into_iter())
-            .skip(1)
-            .map(move |(x, y)| Position::new(x, y))
-            .collect()
-    }
-
-    fn diagonal_path_rev_fwd(range: Range<Position>) -> Vec<Position> {
-        (range.end.file..=range.start.file)
+    fn path_down(&self, steps: usize) -> Vec<Self> {
+        (self.rank - steps..self.rank)
             .rev()
-            .into_iter()
-            .zip(range.start.rank..=range.end.rank)
             .skip(1)
-            .map(move |(x, y)| Position::new(x, y))
+            .map(move |r| Position::new(self.file, r))
             .collect()
     }
 
-    fn diagonal_path_rev_rev(range: Range<Position>) -> Vec<Position> {
-        (range.end.file..=range.start.file)
-            .rev()
-            .zip((range.end.rank..=range.start.rank).rev())
+    fn path_right(&self, steps: usize) -> Vec<Self> {
+        (self.file..self.file + steps)
             .skip(1)
-            .map(move |(x, y)| Position::new(x, y))
+            .map(move |f| Position::new(f, self.rank))
+            .collect()
+    }
+
+    fn path_left(&self, steps: usize) -> Vec<Self> {
+        (self.file - steps..self.file)
+            .rev()
+            .skip(1)
+            .map(move |f| Position::new(f, self.rank))
+            .collect()
+    }
+
+    fn path_up_right(&self, steps: usize) -> Vec<Self> {
+        (self.file..self.file + steps)
+            .zip(self.rank..self.rank + steps)
+            .skip(1)
+            .map(move |(f, r)| Position::new(f, r))
+            .collect()
+    }
+
+    fn path_up_left(&self, steps: usize) -> Vec<Self> {
+        (self.file - steps..self.file)
+            .rev()
+            .zip(self.rank..self.rank + steps)
+            .skip(1)
+            .map(move |(f, r)| Position::new(f, r))
+            .collect()
+    }
+
+    fn path_down_right(&self, steps: usize) -> Vec<Self> {
+        (self.file..self.file + steps)
+            .zip((self.rank - steps..self.rank).rev())
+            .skip(1)
+            .map(move |(f, r)| Position::new(f, r))
+            .collect()
+    }
+
+    fn path_down_left(&self, steps: usize) -> Vec<Self> {
+        (self.file - steps..self.file)
+            .zip(self.rank - steps..self.rank)
+            .rev()
+            .skip(1)
+            .map(move |(f, r)| Position::new(f, r))
             .collect()
     }
 }
@@ -337,6 +299,7 @@ impl FromStr for Position {
     }
 }
 
+#[derive(Debug)]
 pub enum Direction {
     Up,
     Right,
@@ -344,10 +307,37 @@ pub enum Direction {
     Left,
 }
 
+#[derive(Debug)]
+pub enum Action {
+    Regular,
+    Capture,
+}
+
+#[derive(Debug)]
 pub enum Move {
-    Regular(Direction, u8),
-    Diagonal(Direction, Direction, u8),
-    Jump(Direction, Direction),
+    Straight(Direction, usize, Action),
+    Diagonal(Direction, Direction, usize, Action),
+    Jump(Action),
+    Invalid,
+}
+
+impl Move {
+    #[rustfmt::skip]
+    fn new(from: &Position, to: &Position, action: Action) -> Self {
+        match from.distance_to(to) {
+            Distance { file: 0, rank: r @1.. } => Move::Straight(Direction::Up, r as usize, action),
+            Distance { file: 0, rank: r @..=-1 } => Move::Straight(Direction::Down, r.abs() as usize, action),
+            Distance { file: 1.., rank: r @0 } => Move::Straight(Direction::Right, r as usize, action),
+            Distance { file: ..=-1, rank: r @0 } => Move::Straight(Direction::Left, r.abs() as usize, action),
+            Distance { file: f @1.., rank: r @1.. } if f == r=> Move::Diagonal(Direction::Up, Direction::Right, r as usize, action),
+            Distance { file: f @1.., rank: r @..=-1 } if f == -r=> Move::Diagonal(Direction::Down, Direction::Right, r.abs() as usize, action),
+            Distance { file: f @..=-1, rank: r @1.. } if f == -r=> Move::Diagonal(Direction::Up, Direction::Left, r as usize, action),
+            Distance { file: f @..=-1, rank: r @..=-1 } if f == r=> Move::Diagonal(Direction::Down, Direction::Left, r.abs() as usize, action),
+            Distance { file: -2 | 2, rank: -1 | 1 } => Move::Jump(action),
+            Distance { file: -1 | 1, rank: -2 | 2 } => Move::Jump(action),
+            _ => Move::Invalid,
+        }
+    }
 }
 
 pub struct Board {
@@ -361,87 +351,106 @@ impl Board {
             pieces: HashMap::new(),
         };
 
-        board.pieces.insert(Position::new(0, 0), Piece::Rook( Color::White, false));
+        board.pieces.insert(Position::new(0, 0), Piece::Rook( Color::White, State::Initial));
         board.pieces.insert(Position::new(1, 0), Piece::Knight( Color::White));
         board.pieces.insert(Position::new(2, 0), Piece::Bishop( Color::White));
         board.pieces.insert(Position::new(3, 0), Piece::Queen( Color::White));
-        board.pieces.insert(Position::new(4, 0), Piece::King( Color::White, false));
+        board.pieces.insert(Position::new(4, 0), Piece::King( Color::White, State::Initial));
         board.pieces.insert(Position::new(5, 0), Piece::Bishop( Color::White));
         board.pieces.insert(Position::new(6, 0), Piece::Knight( Color::White));
-        board.pieces.insert(Position::new(7, 0), Piece::Rook( Color::White, false));
-        board.pieces.insert(Position::new(0, 1), Piece::Pawn( Color::White, false));
-        board.pieces.insert(Position::new(1, 1), Piece::Pawn( Color::White, false));
-        board.pieces.insert(Position::new(2, 1), Piece::Pawn( Color::White, false));
-        board.pieces.insert(Position::new(3, 1), Piece::Pawn( Color::White, false));
-        board.pieces.insert(Position::new(4, 1), Piece::Pawn( Color::White, false));
-        board.pieces.insert(Position::new(5, 1), Piece::Pawn( Color::White, false));
-        board.pieces.insert(Position::new(6, 1), Piece::Pawn( Color::White, false));
-        board.pieces.insert(Position::new(7, 1), Piece::Pawn( Color::White, false));
-        board.pieces.insert(Position::new(0, 6), Piece::Pawn( Color::Black, false));
-        board.pieces.insert(Position::new(1, 6), Piece::Pawn( Color::Black, false));
-        board.pieces.insert(Position::new(2, 6), Piece::Pawn( Color::Black, false));
-        board.pieces.insert(Position::new(3, 6), Piece::Pawn( Color::Black, false));
-        board.pieces.insert(Position::new(4, 6), Piece::Pawn( Color::Black, false));
-        board.pieces.insert(Position::new(5, 6), Piece::Pawn( Color::Black, false));
-        board.pieces.insert(Position::new(6, 6), Piece::Pawn( Color::Black, false));
-        board.pieces.insert(Position::new(7, 6), Piece::Pawn( Color::Black, false));
-        board.pieces.insert(Position::new(0, 7), Piece::Rook( Color::Black, false));
+        board.pieces.insert(Position::new(7, 0), Piece::Rook( Color::White, State::Initial));
+        board.pieces.insert(Position::new(0, 1), Piece::Pawn( Color::White, State::Initial));
+        board.pieces.insert(Position::new(1, 1), Piece::Pawn( Color::White, State::Initial));
+        board.pieces.insert(Position::new(2, 1), Piece::Pawn( Color::White, State::Initial));
+        board.pieces.insert(Position::new(3, 1), Piece::Pawn( Color::White, State::Initial));
+        board.pieces.insert(Position::new(4, 1), Piece::Pawn( Color::White, State::Initial));
+        board.pieces.insert(Position::new(5, 1), Piece::Pawn( Color::White, State::Initial));
+        board.pieces.insert(Position::new(6, 1), Piece::Pawn( Color::White, State::Initial));
+        board.pieces.insert(Position::new(7, 1), Piece::Pawn( Color::White, State::Initial));
+        board.pieces.insert(Position::new(0, 6), Piece::Pawn( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(1, 6), Piece::Pawn( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(2, 6), Piece::Pawn( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(3, 6), Piece::Pawn( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(4, 6), Piece::Pawn( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(5, 6), Piece::Pawn( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(6, 6), Piece::Pawn( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(7, 6), Piece::Pawn( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(0, 7), Piece::Rook( Color::Black, State::Initial));
         board.pieces.insert(Position::new(1, 7), Piece::Knight( Color::Black));
         board.pieces.insert(Position::new(2, 7), Piece::Bishop( Color::Black));
         board.pieces.insert(Position::new(3, 7), Piece::Queen( Color::Black));
-        board.pieces.insert(Position::new(4, 7), Piece::King( Color::Black, false));
+        board.pieces.insert(Position::new(4, 7), Piece::King( Color::Black, State::Initial));
         board.pieces.insert(Position::new(5, 7), Piece::Bishop( Color::Black));
         board.pieces.insert(Position::new(6, 7), Piece::Knight( Color::Black));
-        board.pieces.insert(Position::new(7, 7), Piece::Rook( Color::Black, false));
+        board.pieces.insert(Position::new(7, 7), Piece::Rook( Color::Black, State::Initial));
 
         board
     }
 
-    pub fn advance(
-        &mut self,
-        color: &Color,
-        from: &Position,
-        to: &Position,
-    ) -> Result<(), CatchAllError> {
-        {
-            // Check if piece of correct color is at from position.
-            let piece = self
-                .pieces
-                .get(from)
-                .map_or(Err(CatchAllError::EmptyField), |p| {
-                    if &p.color() == color {
-                        Ok(p)
-                    } else {
-                        Err(CatchAllError::EmptyField)
-                    }
-                })?;
+    fn piece_at(&self, pos: &Position, color: &Color) -> Result<&Piece, CatchAllError> {
+        self.pieces
+            .get(pos)
+            .map_or(Err(CatchAllError::EmptyField), |p| {
+                (&p.color() == color)
+                    .then(|| p)
+                    .ok_or(CatchAllError::EmptyField)
+            })
+    }
 
-            // Check if piece is at to.
-            // If piece of opposite color, the action will be capture.
-            // If piece of same color, the path is blocked.
-            let is_capture = self.pieces.get(to).map_or(Ok(false), |p| {
-                if &p.color() == color {
-                    Err(CatchAllError::BlockedPath)
-                } else {
-                    Ok(true)
-                }
-            })?;
+    fn action(&self, pos: &Position, color: &Color) -> Result<Action, CatchAllError> {
+        self.pieces.get(pos).map_or(Ok(Action::Regular), |p| {
+            (&p.color() != color)
+                .then(|| Action::Capture)
+                .ok_or(CatchAllError::EmptyField)
+        })
+    }
 
-            // Check if piece can reach the to position from the from position.
-            piece.can_reach(from, to, is_capture)?;
+    fn has_piece(&self, pos: &Position) -> Result<(), CatchAllError> {
+        self.pieces
+            .contains_key(&pos)
+            .eq(&false)
+            .then(|| ())
+            .ok_or(CatchAllError::BlockedPath)
+    }
 
-            // Construct the path the piece can take from to.
-            // Returns the path that defines (from, to].
-            let path = from.path_to(to)?;
+    fn assess_move(&self, pos: &Position, mv: &Move) -> Result<(), CatchAllError> {
+        pos.path(mv)?
+            .iter()
+            .try_fold((), |_, position| self.has_piece(position))
+    }
 
-            // Check if the path from to is unobstructed.
-            piece.is_unobstructed(&self.pieces, &path)?;
-        }
-
-        // Move the piece from to.
-        let piece = self.pieces.remove(from).ok_or(CatchAllError::EmptyField)?;
+    fn update(&mut self, from: &Position, to: &Position) -> Result<(), CatchAllError> {
+        let mut piece = self.pieces.remove(from).ok_or(CatchAllError::EmptyField)?;
+        piece.update();
         self.pieces.insert(to.clone(), piece);
-        self.pieces.entry(to.clone()).and_modify(|v| v.update());
+
+        Ok(())
+    }
+
+    #[rustfmt::skip]
+    fn assess_turn(&self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
+        // Check if piece of correct color is at from position.
+        let piece = self.piece_at(from, color)?;
+
+        // Check if piece is at to.
+        // If piece of opposite color, the action will be capture.
+        // If piece of same color, the path is blocked.
+        let action = self.action(to, color)?;
+        let mv = Move::new(from, to, action);
+
+        // Check if piece can reach the to position from the from position.
+        piece.can_reach(&mv)?;
+
+        // Check if the path taken by move from to is unobstructed.
+        self.assess_move(from, &mv)?;
+
+        Ok(())
+    }
+
+    #[rustfmt::skip]
+    pub fn advance(&mut self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
+        self.assess_turn(color, from, to)?;
+        self.update(from, to)?;
 
         Ok(())
     }
@@ -494,25 +503,15 @@ fn main() {
 
         let mut turn = String::new();
 
-        println!("Enter from position.");
+        println!("Enter turn.");
 
         io::stdin()
             .read_line(&mut turn)
             .ok()
             .expect("Failed to read line.");
 
-        let from = Position::from_str(&turn[..]).unwrap();
-
-        println!("Enter to position.");
-
-        let mut turn = String::new();
-
-        io::stdin()
-            .read_line(&mut turn)
-            .ok()
-            .expect("Failed to read line.");
-
-        let to = Position::from_str(&turn[..]).unwrap();
+        let from = Position::from_str(&turn[0..2]).unwrap();
+        let to = Position::from_str(&turn[2..4]).unwrap();
 
         let res = board.advance(&color, &from, &to);
 
