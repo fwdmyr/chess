@@ -51,21 +51,31 @@ impl button::StyleSheet for Square {
 
 pub struct Gui {
     board: Board,
-    fields: [[button::State; 8]; 8],
+    from: Position,
+    to: Position,
+    turn_state: TurnState,
 }
 
 impl Default for Gui {
     fn default() -> Self {
         Self {
-            fields: [[button::State::default(); 8]; 8],
             board: Board::new(),
+            from: Position::default(),
+            to: Position::default(),
+            turn_state: TurnState::From(Color::White),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
-    Dummy,
+    Move(Position),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TurnState {
+    From(Color),
+    To(Color),
 }
 
 impl Sandbox for Gui {
@@ -76,10 +86,45 @@ impl Sandbox for Gui {
     }
 
     fn title(&self) -> String {
-        "test".to_string()
+        "Chess".to_string()
     }
 
-    fn update(&mut self, msg: Message) {}
+    fn update(&mut self, msg: Message) {
+        let pos = match msg {
+            Message::Move(pos) => pos,
+        };
+
+        match self.turn_state {
+            TurnState::From(_) => {
+                self.from = pos;
+            }
+            TurnState::To(_) => {
+                self.to = pos;
+            }
+        };
+
+        let res = match self.turn_state {
+            TurnState::To(color) => self.board.advance(&color, &self.from, &self.to),
+            TurnState::From(_) => Ok(()),
+        };
+
+        match (res, self.turn_state.clone()) {
+            (Ok(_), TurnState::To(color)) => {
+                self.turn_state = match color {
+                    Color::White => TurnState::From(Color::Black),
+                    Color::Black => TurnState::From(Color::White),
+                }
+            }
+            (Err(e), TurnState::To(color)) => {
+                self.turn_state = TurnState::From(color);
+                println!("{}", e);
+            }
+            (Ok(_), TurnState::From(color)) => {
+                self.turn_state = TurnState::To(color);
+            }
+            _ => panic!(),
+        }
+    }
 
     fn view(&self) -> Element<Message> {
         let mut column = Column::new().align_items(Alignment::Center);
@@ -106,7 +151,7 @@ impl Sandbox for Gui {
                     .style(theme::Button::custom(Square::new(file, rank)))
                     .height(100)
                     .width(100)
-                    .on_press(Message::Dummy),
+                    .on_press(Message::Move(Position::new(file, rank))),
                 );
             }
             column = column.push(row);

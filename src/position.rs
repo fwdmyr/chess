@@ -3,7 +3,7 @@ use crate::r#move::Direction;
 use crate::r#move::Move;
 use std::str::FromStr;
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct Position {
     file: usize,
     rank: usize,
@@ -15,19 +15,17 @@ pub struct Distance {
     pub rank: isize,
 }
 
+impl Default for Position {
+    fn default() -> Self {
+        Self { file: 0, rank: 0 }
+    }
+}
+
 impl Position {
     pub fn new(file: usize, rank: usize) -> Self {
         let position = Self { file, rank };
         assert!(position.valid(), "Invalid position ({}, {})", file, rank);
         position
-    }
-
-    pub fn file(&self) -> usize {
-        self.file
-    }
-
-    pub fn rank(&self) -> usize {
-        self.rank
     }
 
     fn valid(&self) -> bool {

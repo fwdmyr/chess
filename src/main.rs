@@ -1,6 +1,5 @@
 mod board;
 mod error;
-mod game;
 mod gui;
 mod r#move;
 mod piece;
