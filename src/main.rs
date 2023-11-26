@@ -6,9 +6,16 @@ mod piece;
 mod position;
 
 use gui::Gui;
+use iced::window;
 use iced::Sandbox;
 use iced::Settings;
 
 pub fn main() -> iced::Result {
-    Gui::run(Settings::default())
+    Gui::run(Settings {
+        window: window::Settings {
+            size: (800, 800),
+            ..window::Settings::default()
+        },
+        ..Settings::default()
+    })
 }
