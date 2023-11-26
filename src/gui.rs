@@ -14,15 +14,21 @@ macro_rules! rgb {
 
 const LIGHT_SQUARE: iced::Color = rgb!(240, 217, 181);
 const DARK_SQUARE: iced::Color = rgb!(181, 136, 99);
+const HIGHLIGHTED_SQUARE: iced::Color = rgb!(255, 0, 0);
 
 struct Square {
     file: usize,
     rank: usize,
+    is_from: bool,
 }
 
 impl Square {
-    fn new(file: usize, rank: usize) -> Self {
-        Self { file, rank }
+    fn new(pos: &Position, from: &Position) -> Self {
+        Self {
+            file: pos.file(),
+            rank: pos.rank(),
+            is_from: pos == from,
+        }
     }
 }
 
@@ -35,6 +41,11 @@ impl button::StyleSheet for Square {
             1 => DARK_SQUARE,
             _ => panic!(),
         };
+        let color = match self.is_from {
+            true => HIGHLIGHTED_SQUARE,
+            false => color,
+        };
+
         button::Appearance {
             background: Some(iced::Background::Color(color)),
             ..Default::default()
@@ -43,7 +54,7 @@ impl button::StyleSheet for Square {
 
     fn pressed(&self, _: &Self::Style) -> button::Appearance {
         button::Appearance {
-            background: Some(iced::Background::Color(iced::Color::TRANSPARENT)),
+            background: Some(iced::Background::Color(HIGHLIGHTED_SQUARE)),
             ..Default::default()
         }
     }
@@ -148,7 +159,10 @@ impl Sandbox for Gui {
                             .size(75)
                             .style(color),
                     )
-                    .style(theme::Button::custom(Square::new(file, rank)))
+                    .style(theme::Button::custom(Square::new(
+                        &Position::new(file, rank),
+                        &self.from,
+                    )))
                     .height(100)
                     .width(100)
                     .on_press(Message::Move(Position::new(file, rank))),
