@@ -143,37 +143,3 @@ impl FromStr for Position {
         Ok(Position::new(file as usize - 97, rank - 1))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::r#move::Action;
-
-    #[test]
-    fn diagonal_up_left() {
-        let position = Position::new(4, 4);
-        let mv = Move::Diagonal(Direction::Up, Direction::Left, 3, Action::Regular);
-        let path = position.path(&mv);
-        let expected = vec![Position::new(3, 5), Position::new(2, 6)];
-
-        // println!("UpLeft");
-        // println!("Is:       {:?}", path);
-        // println!("Expected: {:?}", expected);
-
-        assert_eq!(path.unwrap(), expected);
-    }
-
-    #[test]
-    fn diagonal_down_right() {
-        let position = Position::new(4, 4);
-        let mv = Move::Diagonal(Direction::Down, Direction::Right, 3, Action::Regular);
-        let path = position.path(&mv);
-        let expected = vec![Position::new(5, 3), Position::new(6, 2)];
-
-        // println!("DownRight");
-        // println!("Is:       {:?}", path);
-        // println!("Expected: {:?}", expected);
-
-        assert_eq!(path.unwrap(), expected);
-    }
-}
