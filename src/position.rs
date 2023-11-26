@@ -64,8 +64,8 @@ impl Position {
 
     fn path_down(&self, steps: usize) -> Vec<Self> {
         (self.rank - steps..self.rank)
-            .rev()
             .skip(1)
+            .rev()
             .map(move |r| Position::new(self.file, r))
             .collect()
     }
@@ -79,8 +79,8 @@ impl Position {
 
     fn path_left(&self, steps: usize) -> Vec<Self> {
         (self.file - steps..self.file)
-            .rev()
             .skip(1)
+            .rev()
             .map(move |f| Position::new(f, self.rank))
             .collect()
     }
@@ -95,17 +95,16 @@ impl Position {
 
     fn path_up_left(&self, steps: usize) -> Vec<Self> {
         (self.file - steps..self.file)
+            .skip(1)
             .rev()
             .zip(self.rank..self.rank + steps)
-            .skip(1)
             .map(move |(f, r)| Position::new(f, r))
             .collect()
     }
 
     fn path_down_right(&self, steps: usize) -> Vec<Self> {
         (self.file..self.file + steps)
-            .zip((self.rank - steps..self.rank).rev())
-            .skip(1)
+            .zip((self.rank - steps..self.rank).rev().skip(1))
             .map(move |(f, r)| Position::new(f, r))
             .collect()
     }
@@ -113,8 +112,8 @@ impl Position {
     fn path_down_left(&self, steps: usize) -> Vec<Self> {
         (self.file - steps..self.file)
             .zip(self.rank - steps..self.rank)
-            .rev()
             .skip(1)
+            .rev()
             .map(move |(f, r)| Position::new(f, r))
             .collect()
     }

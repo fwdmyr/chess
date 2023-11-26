@@ -59,7 +59,6 @@ impl Piece {
 
     #[rustfmt::skip]
     fn can_reach_pawn(mv: &Move, color: &Color, state: &State) -> Result<(), CatchAllError> {
-        println!("{:?}", mv);
         match (mv, color, state) {
             (Move::Straight(Direction::Up, 2, Action::Regular), Color::White, State::Initial) => Ok(()),
             (Move::Straight(Direction::Up, 1, Action::Regular), Color::White, _) => Ok(()),
