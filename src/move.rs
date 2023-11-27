@@ -28,8 +28,8 @@ impl Move {
         match from.distance_to(to) {
             Distance { file: 0, rank: r @1.. } => Move::Straight(Direction::Up, r as usize, action),
             Distance { file: 0, rank: r @..=-1 } => Move::Straight(Direction::Down, r.abs() as usize, action),
-            Distance { file: 1.., rank: r @0 } => Move::Straight(Direction::Right, r as usize, action),
-            Distance { file: ..=-1, rank: r @0 } => Move::Straight(Direction::Left, r.abs() as usize, action),
+            Distance { file: f @1.., rank: 0 } => Move::Straight(Direction::Right, f as usize, action),
+            Distance { file: f @..=-1, rank: 0 } => Move::Straight(Direction::Left, f.abs() as usize, action),
             Distance { file: f @1.., rank: r @1.. } if f == r=> Move::Diagonal(Direction::Up, Direction::Right, r as usize, action),
             Distance { file: f @1.., rank: r @..=-1 } if f == -r=> Move::Diagonal(Direction::Down, Direction::Right, r.abs() as usize, action),
             Distance { file: f @..=-1, rank: r @1.. } if f == -r=> Move::Diagonal(Direction::Up, Direction::Left, r as usize, action),
