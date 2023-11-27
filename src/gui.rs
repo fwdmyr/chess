@@ -155,6 +155,7 @@ impl Sandbox for Gui {
 
         if let Err(e) = self.game.advance(&pos) {
             println!("{}", e);
+            self.game.reset_turn();
         }
     }
 

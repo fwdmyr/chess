@@ -24,7 +24,7 @@ pub enum State {
     Moved,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Piece {
     Pawn(Color, State),
     Knight(Color),

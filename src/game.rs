@@ -23,6 +23,13 @@ impl Game {
         }
     }
 
+    pub fn reset_turn(&mut self) {
+        self.turn = match self.turn {
+            Turn::New(color) => Turn::New(color),
+            Turn::Select(color, _) => Turn::New(color),
+        }
+    }
+
     pub fn advance(&mut self, pos: &Position) -> Result<(), CatchAllError> {
         self.turn = match self.turn {
             Turn::New(_) => self.select(pos)?,
@@ -57,14 +64,13 @@ impl Game {
 
     fn play(&mut self, pos: &Position) -> Result<Turn, CatchAllError> {
         match self.turn {
-            Turn::Select(color, from) => {
-                self.board
-                    .advance(&color, &from, pos)
-                    .map_or(Ok(Turn::New(color)), |_| match color {
-                        Color::White => Ok(Turn::New(Color::Black)),
-                        Color::Black => Ok(Turn::New(Color::White)),
-                    })
-            }
+            Turn::Select(color, from) => self.board.advance(&color, &from, pos).map_or(
+                Err(CatchAllError::InvalidTurn),
+                |_| match color {
+                    Color::White => Ok(Turn::New(Color::Black)),
+                    Color::Black => Ok(Turn::New(Color::White)),
+                },
+            ),
             _ => Err(CatchAllError::InvalidTurn),
         }
     }

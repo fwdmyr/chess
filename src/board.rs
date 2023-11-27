@@ -4,8 +4,26 @@ use crate::position::Position;
 use crate::r#move::{Action, Move};
 use std::collections::HashMap;
 
+#[derive(Debug, Clone)]
+pub struct MoveCache {
+    pub from: Position,
+    pub to: Position,
+    pub captured: Option<Piece>,
+}
+
+impl MoveCache {
+    pub fn new(from: Position, to: Position, captured: Option<Piece>) -> Self {
+        Self {
+            from,
+            to,
+            captured: captured,
+        }
+    }
+}
+
 pub struct Board {
     pieces: HashMap<Position, Piece>,
+    cache: Option<MoveCache>,
 }
 
 impl Board {
@@ -13,6 +31,7 @@ impl Board {
     pub fn new() -> Self {
         let mut board = Self {
             pieces: HashMap::new(),
+            cache: None,
         };
 
         board.pieces.insert(Position::new(0, 0), Piece::Rook( Color::White, State::Initial));
@@ -65,6 +84,27 @@ impl Board {
             .map_or(Err(CatchAllError::EmptyField), |p| Ok(p))
     }
 
+    pub fn king(&self, color: &Color) -> Result<(&Position, &Piece), CatchAllError> {
+        self.pieces
+            .iter()
+            .find(|(_, v)| match v {
+                Piece::King(c, _) if c == color => true,
+                _ => false,
+            })
+            .ok_or(CatchAllError::NoKing)
+    }
+
+    pub fn in_check(&self, color: &Color) -> Result<bool, CatchAllError> {
+        let (pos, _) = self.king(color)?;
+        Ok(self.pieces.iter().any(|(k, v)| {
+            &v.color() != color
+                && v.can_reach(&Move::new(k, pos, Action::Regular)).is_ok()
+                && self
+                    .assess_move(k, &Move::new(k, pos, Action::Regular))
+                    .is_ok()
+        }))
+    }
+
     fn piece_at(&self, pos: &Position, color: &Color) -> Result<&Piece, CatchAllError> {
         self.pieces
             .get(pos)
@@ -92,9 +132,29 @@ impl Board {
     }
 
     fn update(&mut self, from: &Position, to: &Position) -> Result<(), CatchAllError> {
+        let captured = self.pieces.get(to).map(|p| p.clone());
         let mut piece = self.pieces.remove(from).ok_or(CatchAllError::EmptyField)?;
         piece.update();
         self.pieces.insert(to.clone(), piece);
+
+        self.cache = Some(MoveCache::new(from.clone(), to.clone(), captured));
+
+        Ok(())
+    }
+
+    fn revert(&mut self) -> Result<(), CatchAllError> {
+        let cache = self.cache.clone().ok_or(CatchAllError::EmptyMoveCache)?;
+        let piece = self
+            .pieces
+            .remove(&cache.to)
+            .ok_or(CatchAllError::EmptyField)?;
+        self.pieces.insert(cache.from, piece);
+
+        if let Some(captured) = cache.captured {
+            self.pieces.insert(cache.to, captured);
+        }
+
+        self.cache = None;
 
         Ok(())
     }
@@ -106,7 +166,20 @@ impl Board {
     }
 
     #[rustfmt::skip]
-    fn assess_turn(&self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
+    fn resolve_check(&mut self, from: &Position, to: &Position, color: &Color) -> Result<(), CatchAllError> {
+        self.update(from, to)?;
+
+        let res = self.in_check(color);
+
+        self.revert()?;
+
+        res?.then(|| ()).map_or(Ok(()), |_| Err(CatchAllError::InCheck))?;
+
+        Ok(())
+    }
+
+    #[rustfmt::skip]
+    fn assess_turn(&mut self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
         // Check if piece of correct color is at from position.
         let piece = self.piece_at(from, color)?;
 
@@ -121,6 +194,9 @@ impl Board {
 
         // Check if the path taken by move from to is unobstructed.
         self.assess_move(from, &mv)?;
+
+        // Check if the king would be in check after the move.
+        self.resolve_check(from ,to, color)?;
 
         Ok(())
     }
