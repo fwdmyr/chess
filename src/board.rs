@@ -1,6 +1,7 @@
 use crate::error::CatchAllError;
 use crate::piece::{Color, Piece, State};
 use crate::position::Position;
+use crate::r#move::Direction;
 use crate::r#move::{Action, Move};
 use std::collections::HashMap;
 
@@ -178,6 +179,33 @@ impl Board {
         Ok(())
     }
 
+    fn castle_rook(&mut self, color: &Color, direction: &Direction) -> Result<(), CatchAllError> {
+        let (from, to) = match (color, direction) {
+            (Color::White, Direction::Left) => (Position::new(0, 0), Position::new(3, 0)),
+            (Color::White, Direction::Right) => (Position::new(7, 0), Position::new(5, 0)),
+            (Color::Black, Direction::Left) => (Position::new(0, 7), Position::new(3, 7)),
+            (Color::Black, Direction::Right) => (Position::new(7, 7), Position::new(5, 7)),
+            _ => Err(CatchAllError::BadCastle)?,
+        };
+
+        match self.pieces.remove(&from) {
+            rook @ Some(Piece::Rook(_, State::Initial)) => self
+                .pieces
+                .insert(to, rook.unwrap())
+                .map_or(Ok(()), |_| Err(CatchAllError::BadCastle)),
+            _ => Err(CatchAllError::BadCastle),
+        }
+    }
+
+    fn resolve_castle(&mut self, piece: &Piece, mv: &Move) -> Result<(), CatchAllError> {
+        match (piece, mv) {
+            (Piece::King(color, State::Initial), Move::Straight(direction, 2, Action::Regular)) => {
+                self.castle_rook(color, direction)
+            }
+            _ => Ok(()),
+        }
+    }
+
     #[rustfmt::skip]
     fn assess_turn(&mut self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
         // Check if piece of correct color is at from position.
@@ -194,6 +222,8 @@ impl Board {
 
         // Check if the path taken by move from to is unobstructed.
         self.assess_move(from, &mv)?;
+
+        self.resolve_castle(&piece.clone(), &mv)?;
 
         // Check if the king would be in check after the move.
         self.resolve_check(from ,to, color)?;

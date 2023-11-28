@@ -119,7 +119,7 @@ impl Piece {
         match (mv, state) {
             (Move::Straight(_, 1, _), _) => Ok(()),
             (Move::Diagonal(_, _, 1, _), _) => Ok(()),
-            (Move::Straight(Direction::Left, 3, Action::Regular), State::Initial) => Ok(()),
+            (Move::Straight(Direction::Left, 2, Action::Regular), State::Initial) => Ok(()),
             (Move::Straight(Direction::Right, 2, Action::Regular), State::Initial) => Ok(()),
             _ => Err(CatchAllError::UnreachableField),
         }

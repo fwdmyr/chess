@@ -2,6 +2,7 @@ use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum CatchAllError {
+    BadCastle,
     EmptyMoveCache,
     NoKing,
     InCheck,
@@ -15,6 +16,7 @@ pub enum CatchAllError {
 impl fmt::Display for CatchAllError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            CatchAllError::BadCastle => write!(f, "invalid castle"),
             CatchAllError::EmptyMoveCache => write!(f, "the move cache is empty"),
             CatchAllError::NoKing => write!(f, "the king does not exist"),
             CatchAllError::InCheck => write!(f, "the king is in check"),
