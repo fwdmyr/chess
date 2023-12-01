@@ -229,8 +229,25 @@ impl Board {
         }
     }
 
+    fn resolve_nomoves(&mut self, color: &Color) -> Result<(), CatchAllError> {
+        self.pieces
+            .clone()
+            .iter()
+            .filter(|(_, piece)| &piece.color() == color)
+            .any(|(from, piece)| {
+                piece
+                    .all_moves(&from)
+                    .iter()
+                    .any(|to| self.resolve_check(&from, to, color).is_ok())
+            })
+            .then(|| ())
+            .ok_or(CatchAllError::NoLegalMoves)
+    }
+
     #[rustfmt::skip]
     fn assess_turn(&mut self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
+        self.resolve_nomoves(color)?;
+
         // Check if piece of correct color is at from position.
         let piece = self.piece_at(from, color)?.clone();
 

@@ -75,6 +75,17 @@ impl Piece {
         }
     }
 
+    pub fn all_moves(&self, from: &Position) -> Vec<Position> {
+        (0..8)
+            .zip(0..8)
+            .filter_map(|(i, j)| {
+                let position = Position::new(i, j);
+                let mv = Move::new(from, &position, Action::Regular);
+                self.can_reach(&mv).map_or(None, |_| Some(position))
+            })
+            .collect()
+    }
+
     pub fn can_reach(&self, mv: &Move) -> Result<(), CatchAllError> {
         match self {
             Piece::Pawn(color, counter) => Piece::can_reach_pawn(mv, color, counter),
