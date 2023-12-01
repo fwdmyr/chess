@@ -80,8 +80,22 @@ impl Piece {
             .zip(0..8)
             .filter_map(|(i, j)| {
                 let position = Position::new(i, j);
-                let mv = Move::new(from, &position, Action::Regular);
-                self.can_reach(&mv).map_or(None, |_| Some(position))
+                match self {
+                    Piece::Pawn(_, _) => {
+                        let regular_mv = Move::new(from, &position, Action::Regular);
+                        let capture_mv = Move::new(from, &position, Action::Capture);
+
+                        self.can_reach(&regular_mv)
+                            .map_or(None, |_| Some(position))
+                            .and_then(|_| {
+                                self.can_reach(&capture_mv).map_or(None, |_| Some(position))
+                            })
+                    }
+                    _ => {
+                        let mv = Move::new(from, &position, Action::Regular);
+                        self.can_reach(&mv).map_or(None, |_| Some(position))
+                    }
+                }
             })
             .collect()
     }
