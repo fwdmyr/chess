@@ -136,7 +136,18 @@ impl Board {
         let captured = self.pieces.get(to).map(|p| p.clone());
         let mut piece = self.pieces.remove(from).ok_or(CatchAllError::EmptyField)?;
         piece.update();
-        self.pieces.insert(to.clone(), piece);
+
+        match piece {
+            Piece::Pawn(Color::White, _) if to.rank() == 7 => {
+                self.pieces.insert(to.clone(), Piece::Queen(Color::White));
+            }
+            Piece::Pawn(Color::Black, _) if to.rank() == 0 => {
+                self.pieces.insert(to.clone(), Piece::Queen(Color::Black));
+            }
+            _ => {
+                self.pieces.insert(to.clone(), piece);
+            }
+        }
 
         self.cache = Some(MoveCache::new(from.clone(), to.clone(), captured));
 
@@ -226,7 +237,7 @@ impl Board {
         self.resolve_castle(&piece.clone(), &mv)?;
 
         // Check if the king would be in check after the move.
-        self.resolve_check(from ,to, color)?;
+        self.resolve_check(from, to, color)?;
 
         Ok(())
     }

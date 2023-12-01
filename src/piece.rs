@@ -129,12 +129,18 @@ impl Piece {
 impl ToString for Piece {
     fn to_string(&self) -> String {
         match self {
-            Piece::Pawn(_, _) => "♟".to_string(),
-            Piece::Knight(_) => "♞".to_string(),
-            Piece::Bishop(_) => "♝".to_string(),
-            Piece::Rook(_, _) => "♜".to_string(),
-            Piece::Queen(_) => "♛".to_string(),
-            Piece::King(_, _) => "♚".to_string(),
+            // Piece::Pawn(_, _) => "♟".to_string(),
+            // Piece::Knight(_) => "♞".to_string(),
+            // Piece::Bishop(_) => "♝".to_string(),
+            // Piece::Rook(_, _) => "♜".to_string(),
+            // Piece::Queen(_) => "♛".to_string(),
+            // Piece::King(_, _) => "♚".to_string(),
+            Piece::Pawn(_, _) => "P".to_string(),
+            Piece::Knight(_) => "N".to_string(),
+            Piece::Bishop(_) => "B".to_string(),
+            Piece::Rook(_, _) => "R".to_string(),
+            Piece::Queen(_) => "Q".to_string(),
+            Piece::King(_, _) => "K".to_string(),
         }
     }
 }
