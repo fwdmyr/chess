@@ -13,7 +13,6 @@ use iced::Settings;
 
 pub fn main() -> iced::Result {
     // todo!("Ensure that the king cannot castle through check.");
-    // todo!("Correctly wind back moves by also restoring piece state (maybe use counter that ticks up on piece move rather than state enum).");
     // todo!("Determine checkmate and stalemate (brute-force check all reachable fields for all pieces of king's color).");
     // todo!("Resolve en-passant.");
     // todo!("Reduce responsibilities of board");

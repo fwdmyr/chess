@@ -1,5 +1,5 @@
 use crate::error::CatchAllError;
-use crate::piece::{Color, Piece, State};
+use crate::piece::{Color, MoveCounter, Piece};
 use crate::position::Position;
 use crate::r#move::Direction;
 use crate::r#move::{Action, Move};
@@ -35,38 +35,38 @@ impl Board {
             cache: None,
         };
 
-        board.pieces.insert(Position::new(0, 0), Piece::Rook( Color::White, State::Initial));
+        board.pieces.insert(Position::new(0, 0), Piece::Rook( Color::White, MoveCounter(0)));
         board.pieces.insert(Position::new(1, 0), Piece::Knight( Color::White));
         board.pieces.insert(Position::new(2, 0), Piece::Bishop( Color::White));
         board.pieces.insert(Position::new(3, 0), Piece::Queen( Color::White));
-        board.pieces.insert(Position::new(4, 0), Piece::King( Color::White, State::Initial));
+        board.pieces.insert(Position::new(4, 0), Piece::King( Color::White, MoveCounter(0)));
         board.pieces.insert(Position::new(5, 0), Piece::Bishop( Color::White));
         board.pieces.insert(Position::new(6, 0), Piece::Knight( Color::White));
-        board.pieces.insert(Position::new(7, 0), Piece::Rook( Color::White, State::Initial));
-        board.pieces.insert(Position::new(0, 1), Piece::Pawn( Color::White, State::Initial));
-        board.pieces.insert(Position::new(1, 1), Piece::Pawn( Color::White, State::Initial));
-        board.pieces.insert(Position::new(2, 1), Piece::Pawn( Color::White, State::Initial));
-        board.pieces.insert(Position::new(3, 1), Piece::Pawn( Color::White, State::Initial));
-        board.pieces.insert(Position::new(4, 1), Piece::Pawn( Color::White, State::Initial));
-        board.pieces.insert(Position::new(5, 1), Piece::Pawn( Color::White, State::Initial));
-        board.pieces.insert(Position::new(6, 1), Piece::Pawn( Color::White, State::Initial));
-        board.pieces.insert(Position::new(7, 1), Piece::Pawn( Color::White, State::Initial));
-        board.pieces.insert(Position::new(0, 6), Piece::Pawn( Color::Black, State::Initial));
-        board.pieces.insert(Position::new(1, 6), Piece::Pawn( Color::Black, State::Initial));
-        board.pieces.insert(Position::new(2, 6), Piece::Pawn( Color::Black, State::Initial));
-        board.pieces.insert(Position::new(3, 6), Piece::Pawn( Color::Black, State::Initial));
-        board.pieces.insert(Position::new(4, 6), Piece::Pawn( Color::Black, State::Initial));
-        board.pieces.insert(Position::new(5, 6), Piece::Pawn( Color::Black, State::Initial));
-        board.pieces.insert(Position::new(6, 6), Piece::Pawn( Color::Black, State::Initial));
-        board.pieces.insert(Position::new(7, 6), Piece::Pawn( Color::Black, State::Initial));
-        board.pieces.insert(Position::new(0, 7), Piece::Rook( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(7, 0), Piece::Rook( Color::White, MoveCounter(0)));
+        board.pieces.insert(Position::new(0, 1), Piece::Pawn( Color::White, MoveCounter(0)));
+        board.pieces.insert(Position::new(1, 1), Piece::Pawn( Color::White, MoveCounter(0)));
+        board.pieces.insert(Position::new(2, 1), Piece::Pawn( Color::White, MoveCounter(0)));
+        board.pieces.insert(Position::new(3, 1), Piece::Pawn( Color::White, MoveCounter(0)));
+        board.pieces.insert(Position::new(4, 1), Piece::Pawn( Color::White, MoveCounter(0)));
+        board.pieces.insert(Position::new(5, 1), Piece::Pawn( Color::White, MoveCounter(0)));
+        board.pieces.insert(Position::new(6, 1), Piece::Pawn( Color::White, MoveCounter(0)));
+        board.pieces.insert(Position::new(7, 1), Piece::Pawn( Color::White, MoveCounter(0)));
+        board.pieces.insert(Position::new(0, 6), Piece::Pawn( Color::Black, MoveCounter(0)));
+        board.pieces.insert(Position::new(1, 6), Piece::Pawn( Color::Black, MoveCounter(0)));
+        board.pieces.insert(Position::new(2, 6), Piece::Pawn( Color::Black, MoveCounter(0)));
+        board.pieces.insert(Position::new(3, 6), Piece::Pawn( Color::Black, MoveCounter(0)));
+        board.pieces.insert(Position::new(4, 6), Piece::Pawn( Color::Black, MoveCounter(0)));
+        board.pieces.insert(Position::new(5, 6), Piece::Pawn( Color::Black, MoveCounter(0)));
+        board.pieces.insert(Position::new(6, 6), Piece::Pawn( Color::Black, MoveCounter(0)));
+        board.pieces.insert(Position::new(7, 6), Piece::Pawn( Color::Black, MoveCounter(0)));
+        board.pieces.insert(Position::new(0, 7), Piece::Rook( Color::Black, MoveCounter(0)));
         board.pieces.insert(Position::new(1, 7), Piece::Knight( Color::Black));
         board.pieces.insert(Position::new(2, 7), Piece::Bishop( Color::Black));
         board.pieces.insert(Position::new(3, 7), Piece::Queen( Color::Black));
-        board.pieces.insert(Position::new(4, 7), Piece::King( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(4, 7), Piece::King( Color::Black, MoveCounter(0)));
         board.pieces.insert(Position::new(5, 7), Piece::Bishop( Color::Black));
         board.pieces.insert(Position::new(6, 7), Piece::Knight( Color::Black));
-        board.pieces.insert(Position::new(7, 7), Piece::Rook( Color::Black, State::Initial));
+        board.pieces.insert(Position::new(7, 7), Piece::Rook( Color::Black, MoveCounter(0)));
 
         board
     }
@@ -156,10 +156,13 @@ impl Board {
 
     fn revert(&mut self) -> Result<(), CatchAllError> {
         let cache = self.cache.clone().ok_or(CatchAllError::EmptyMoveCache)?;
-        let piece = self
+        let mut piece = self
             .pieces
             .remove(&cache.to)
             .ok_or(CatchAllError::EmptyField)?;
+
+        piece.revert();
+
         self.pieces.insert(cache.from, piece);
 
         if let Some(captured) = cache.captured {
@@ -200,7 +203,7 @@ impl Board {
         };
 
         match self.pieces.remove(&from) {
-            rook @ Some(Piece::Rook(_, State::Initial)) => self
+            rook @ Some(Piece::Rook(_, MoveCounter(0))) => self
                 .pieces
                 .insert(to, rook.unwrap())
                 .map_or(Ok(()), |_| Err(CatchAllError::BadCastle)),
@@ -208,9 +211,18 @@ impl Board {
         }
     }
 
-    fn resolve_castle(&mut self, piece: &Piece, mv: &Move) -> Result<(), CatchAllError> {
+    fn resolve_castle(
+        &mut self,
+        piece: &Piece,
+        from: &Position,
+        mv: &Move,
+    ) -> Result<(), CatchAllError> {
         match (piece, mv) {
-            (Piece::King(color, State::Initial), Move::Straight(direction, 2, Action::Regular)) => {
+            (Piece::King(color, MoveCounter(0)), Move::Straight(direction, 2, Action::Regular)) => {
+                let mut path = from.path(mv)?;
+                path.push(from.clone());
+                path.iter()
+                    .try_for_each(|to| self.resolve_check(from, to, color))?;
                 self.castle_rook(color, direction)
             }
             _ => Ok(()),
@@ -220,7 +232,7 @@ impl Board {
     #[rustfmt::skip]
     fn assess_turn(&mut self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
         // Check if piece of correct color is at from position.
-        let piece = self.piece_at(from, color)?;
+        let piece = self.piece_at(from, color)?.clone();
 
         // Check if piece is at to.
         // If piece of opposite color, the action will be capture.
@@ -234,10 +246,10 @@ impl Board {
         // Check if the path taken by move from to is unobstructed.
         self.assess_move(from, &mv)?;
 
-        self.resolve_castle(&piece.clone(), &mv)?;
-
         // Check if the king would be in check after the move.
         self.resolve_check(from, to, color)?;
+
+        self.resolve_castle(&piece.clone(), from, &mv)?;
 
         Ok(())
     }

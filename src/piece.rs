@@ -18,29 +18,47 @@ impl From<Position> for Color {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum State {
-    Initial,
-    Moved,
+#[derive(Debug, Clone, PartialEq)]
+pub struct MoveCounter(pub u32);
+
+impl MoveCounter {
+    pub fn increment(&mut self) {
+        self.0 += 1;
+    }
+
+    pub fn decrement(&mut self) {
+        self.0 -= 1;
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Piece {
-    Pawn(Color, State),
+    Pawn(Color, MoveCounter),
     Knight(Color),
     Bishop(Color),
-    Rook(Color, State),
+    Rook(Color, MoveCounter),
     Queen(Color),
-    King(Color, State),
+    King(Color, MoveCounter),
 }
 
 impl Piece {
     pub fn update(&mut self) {
         match self {
-            Piece::Pawn(_, ref mut state)
-            | Piece::Rook(_, ref mut state)
-            | Piece::King(_, ref mut state) => {
-                *state = State::Moved;
+            Piece::Pawn(_, ref mut counter)
+            | Piece::Rook(_, ref mut counter)
+            | Piece::King(_, ref mut counter) => {
+                counter.increment();
+            }
+            _ => (),
+        }
+    }
+
+    pub fn revert(&mut self) {
+        match self {
+            Piece::Pawn(_, ref mut counter)
+            | Piece::Rook(_, ref mut counter)
+            | Piece::King(_, ref mut counter) => {
+                counter.decrement();
             }
             _ => (),
         }
@@ -59,7 +77,7 @@ impl Piece {
 
     pub fn can_reach(&self, mv: &Move) -> Result<(), CatchAllError> {
         match self {
-            Piece::Pawn(color, state) => Piece::can_reach_pawn(mv, color, state),
+            Piece::Pawn(color, counter) => Piece::can_reach_pawn(mv, color, counter),
             Piece::Knight(_) => Piece::can_reach_knight(mv),
             Piece::Bishop(_) => Piece::can_reach_bishop(mv),
             Piece::Rook(_, _) => Piece::can_reach_rook(mv),
@@ -69,12 +87,12 @@ impl Piece {
     }
 
     #[rustfmt::skip]
-    fn can_reach_pawn(mv: &Move, color: &Color, state: &State) -> Result<(), CatchAllError> {
-        match (mv, color, state) {
-            (Move::Straight(Direction::Up, 2, Action::Regular), Color::White, State::Initial) => Ok(()),
+    fn can_reach_pawn(mv: &Move, color: &Color, counter: &MoveCounter) -> Result<(), CatchAllError> {
+        match (mv, color, counter) {
+            (Move::Straight(Direction::Up, 2, Action::Regular), Color::White, MoveCounter(0)) => Ok(()),
             (Move::Straight(Direction::Up, 1, Action::Regular), Color::White, _) => Ok(()),
             (Move::Diagonal(Direction::Up, Direction::Left | Direction::Right, 1, Action::Capture), Color::White, _) => Ok(()),
-            (Move::Straight(Direction::Down, 2, Action::Regular), Color::Black, State::Initial) => Ok(()),
+            (Move::Straight(Direction::Down, 2, Action::Regular), Color::Black, MoveCounter(0)) => Ok(()),
             (Move::Straight(Direction::Down, 1, Action::Regular), Color::Black, _) => Ok(()),
             (Move::Diagonal(Direction::Down, Direction::Left | Direction::Right, 1, Action::Capture), Color::Black, _) => Ok(()),
             _ => Err(CatchAllError::UnreachableField),
@@ -115,12 +133,12 @@ impl Piece {
     }
 
     #[rustfmt::skip]
-    fn can_reach_king(mv: &Move, state: &State) -> Result<(), CatchAllError> {
-        match (mv, state) {
+    fn can_reach_king(mv: &Move, counter: &MoveCounter) -> Result<(), CatchAllError> {
+        match (mv, counter) {
             (Move::Straight(_, 1, _), _) => Ok(()),
             (Move::Diagonal(_, _, 1, _), _) => Ok(()),
-            (Move::Straight(Direction::Left, 2, Action::Regular), State::Initial) => Ok(()),
-            (Move::Straight(Direction::Right, 2, Action::Regular), State::Initial) => Ok(()),
+            (Move::Straight(Direction::Left, 2, Action::Regular), MoveCounter(0)) => Ok(()),
+            (Move::Straight(Direction::Right, 2, Action::Regular), MoveCounter(0)) => Ok(()),
             _ => Err(CatchAllError::UnreachableField),
         }
     }
