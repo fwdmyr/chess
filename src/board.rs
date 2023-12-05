@@ -1,6 +1,6 @@
 use crate::error::CatchAllError;
 use crate::piece::{Color, MoveCounter, Piece};
-use crate::position::Position;
+use crate::position::{Distance, Position};
 use crate::r#move::Direction;
 use crate::r#move::{Action, Move};
 use std::collections::HashMap;
@@ -25,6 +25,7 @@ impl MoveCache {
 pub struct Board {
     pieces: HashMap<Position, Piece>,
     cache: Option<MoveCache>,
+    enpassant: Option<Position>,
 }
 
 impl Board {
@@ -33,6 +34,7 @@ impl Board {
         let mut board = Self {
             pieces: HashMap::new(),
             cache: None,
+            enpassant: None,
         };
 
         board.pieces.insert(Position::new(0, 0), Piece::Rook( Color::White, MoveCounter(0)));
@@ -244,12 +246,47 @@ impl Board {
             .ok_or(CatchAllError::NoLegalMoves)
     }
 
+    fn resolve_enpassant(&mut self, piece: &Piece, to: &Position) -> Result<(), CatchAllError> {
+        if let Some(pos) = self.enpassant.take() {
+            let prev_to = match pos.distance_to(to) {
+                Distance { file: 0, rank: 1 } if piece.color() == Color::White => {
+                    Some(Position::new(to.file(), to.rank() - 1))
+                }
+                Distance { file: 0, rank: -1 } if piece.color() == Color::Black => {
+                    Some(Position::new(to.file(), to.rank() + 1))
+                }
+                _ => None,
+            };
+            if let Some(pos) = prev_to {
+                let other_piece = self.pieces.remove(&pos).ok_or(CatchAllError::EmptyField)?;
+                self.pieces.insert(to.clone(), other_piece);
+                Ok(())
+            } else {
+                Ok(())
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    fn set_enpassant(&mut self, piece: &Piece, mv: &Move, to: &Position) {
+        if let (
+            Piece::Pawn(_, _),
+            Move::Straight(Direction::Up | Direction::Down, 2, Action::Regular),
+        ) = (piece, mv)
+        {
+            self.enpassant = Some(to.clone());
+        }
+    }
+
     #[rustfmt::skip]
     fn assess_turn(&mut self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
         self.resolve_nomoves(color)?;
 
         // Check if piece of correct color is at from position.
         let piece = self.piece_at(from, color)?.clone();
+
+        self.resolve_enpassant(&piece, &to)?;
 
         // Check if piece is at to.
         // If piece of opposite color, the action will be capture.
@@ -267,6 +304,8 @@ impl Board {
         self.resolve_check(from, to, color)?;
 
         self.resolve_castle(&piece.clone(), from, &mv)?;
+
+        self.set_enpassant(&piece, &mv, &to);
 
         Ok(())
     }

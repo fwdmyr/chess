@@ -17,8 +17,6 @@ pub fn main() -> iced::Result {
     // todo!("Reduce responsibilities of board");
     // todo!("Handle draw by three-fold repetition (Zobrist hasing), by insufficient material, by 50 move rule (simple capture counter)");
 
-    println!("♟");
-
     Gui::run(Settings {
         window: window::Settings {
             size: (800, 800),
