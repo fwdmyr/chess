@@ -1,3 +1,4 @@
+use crate::error::CatchAllError;
 use crate::game::Game;
 use crate::game::Turn;
 use crate::piece::Color;
@@ -156,6 +157,10 @@ impl Sandbox for Gui {
         if let Err(e) = self.game.advance(&pos) {
             println!("{}", e);
             self.game.reset_turn();
+
+            if let CatchAllError::NoLegalMoves = e {
+                self.game.reset();
+            }
         }
     }
 

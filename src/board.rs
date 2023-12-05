@@ -233,7 +233,7 @@ impl Board {
         }
     }
 
-    fn resolve_nomoves(&mut self, color: &Color) -> Result<(), CatchAllError> {
+    pub fn resolve_nomoves(&mut self, color: &Color) -> Result<(), CatchAllError> {
         self.pieces
             .clone()
             .iter()
@@ -288,8 +288,6 @@ impl Board {
 
     #[rustfmt::skip]
     fn assess_turn(&mut self, color: &Color, from: &Position, to: &Position) -> Result<(), CatchAllError> {
-        self.resolve_nomoves(color)?;
-
         // Check if piece of correct color is at from position.
         let piece = self.piece_at(from, color)?.clone();
 

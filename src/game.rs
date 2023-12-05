@@ -23,6 +23,11 @@ impl Game {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.turn = Turn::New(Color::White);
+        self.board = Board::new();
+    }
+
     pub fn reset_turn(&mut self) {
         self.turn = match self.turn {
             Turn::New(color) => Turn::New(color),
@@ -47,7 +52,7 @@ impl Game {
         self.turn
     }
 
-    fn select(&self, pos: &Position) -> Result<Turn, CatchAllError> {
+    fn select(&mut self, pos: &Position) -> Result<Turn, CatchAllError> {
         match self.turn {
             Turn::New(color) => self
                 .board
@@ -66,9 +71,16 @@ impl Game {
         match self.turn {
             Turn::Select(color, from) => {
                 self.board.advance(&color, &from, pos)?;
+                self.board.resolve_nomoves(&color)?;
                 match color {
-                    Color::White => Ok(Turn::New(Color::Black)),
-                    Color::Black => Ok(Turn::New(Color::White)),
+                    Color::White => {
+                        self.board.resolve_nomoves(&Color::Black)?;
+                        Ok(Turn::New(Color::Black))
+                    }
+                    Color::Black => {
+                        self.board.resolve_nomoves(&Color::White)?;
+                        Ok(Turn::New(Color::White))
+                    }
                 }
             }
             _ => Err(CatchAllError::InvalidTurn),
