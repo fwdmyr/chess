@@ -64,13 +64,13 @@ impl Game {
 
     fn play(&mut self, pos: &Position) -> Result<Turn, CatchAllError> {
         match self.turn {
-            Turn::Select(color, from) => self.board.advance(&color, &from, pos).map_or(
-                Err(CatchAllError::InvalidTurn),
-                |_| match color {
+            Turn::Select(color, from) => {
+                self.board.advance(&color, &from, pos)?;
+                match color {
                     Color::White => Ok(Turn::New(Color::Black)),
                     Color::Black => Ok(Turn::New(Color::White)),
-                },
-            ),
+                }
+            }
             _ => Err(CatchAllError::InvalidTurn),
         }
     }

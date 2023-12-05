@@ -13,7 +13,6 @@ use iced::Settings;
 
 pub fn main() -> iced::Result {
     // todo!("Determine checkmate and stalemate (brute-force check all reachable fields for all pieces of king's color).");
-    // todo!("Resolve en-passant.");
     // todo!("Reduce responsibilities of board");
     // todo!("Handle draw by three-fold repetition (Zobrist hasing), by insufficient material, by 50 move rule (simple capture counter)");
 
