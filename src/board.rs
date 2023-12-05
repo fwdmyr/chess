@@ -247,35 +247,33 @@ impl Board {
     }
 
     fn resolve_enpassant(&mut self, piece: &Piece, to: &Position) -> Result<(), CatchAllError> {
-        if let Some(pos) = self.enpassant.take() {
-            let prev_to = match pos.distance_to(to) {
-                Distance { file: 0, rank: 1 } if piece.color() == Color::White => {
-                    Some(Position::new(to.file(), to.rank() - 1))
-                }
-                Distance { file: 0, rank: -1 } if piece.color() == Color::Black => {
-                    Some(Position::new(to.file(), to.rank() + 1))
-                }
-                _ => None,
-            };
-            if let Some(pos) = prev_to {
-                let other_piece = self.pieces.remove(&pos).ok_or(CatchAllError::EmptyField)?;
-                self.pieces.insert(to.clone(), other_piece);
-                Ok(())
-            } else {
-                Ok(())
+        let prev_pos = self.enpassant.and_then(|pos| match pos.distance_to(to) {
+            Distance { file: 0, rank: 1 } if piece.color() == Color::White => {
+                Some(Position::new(to.file(), to.rank() - 1))
             }
-        } else {
-            Ok(())
+            Distance { file: 0, rank: -1 } if piece.color() == Color::Black => {
+                Some(Position::new(to.file(), to.rank() + 1))
+            }
+            _ => None,
+        });
+
+        if let Some(pos) = prev_pos {
+            let enpassantable_piece = self.pieces.remove(&pos).ok_or(CatchAllError::EmptyField)?;
+            self.pieces.insert(to.clone(), enpassantable_piece);
         }
+
+        Ok(())
     }
 
-    fn set_enpassant(&mut self, piece: &Piece, mv: &Move, to: &Position) {
+    fn enpassantable(&mut self, piece: &Piece, mv: &Move, to: &Position) {
         if let (
             Piece::Pawn(_, _),
             Move::Straight(Direction::Up | Direction::Down, 2, Action::Regular),
         ) = (piece, mv)
         {
             self.enpassant = Some(to.clone());
+        } else {
+            self.enpassant.take();
         }
     }
 
@@ -305,7 +303,7 @@ impl Board {
 
         self.resolve_castle(&piece.clone(), from, &mv)?;
 
-        self.set_enpassant(&piece, &mv, &to);
+        self.enpassantable(&piece, &mv, &to);
 
         Ok(())
     }
