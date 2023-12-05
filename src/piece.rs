@@ -76,8 +76,7 @@ impl Piece {
     }
 
     pub fn all_moves(&self, from: &Position) -> Vec<Position> {
-        (0..8)
-            .zip(0..8)
+        itertools::iproduct!(0..8, 0..8)
             .filter_map(|(i, j)| {
                 let to = Position::new(i, j);
                 match self {
