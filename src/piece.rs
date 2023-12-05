@@ -84,10 +84,15 @@ impl Piece {
                         let regular_mv = Move::new(from, &to, Action::Regular);
                         let capture_mv = Move::new(from, &to, Action::Capture);
 
-                        self.can_reach(&regular_mv)
-                            .map_or(None, |_| Some(to))
-                            .and_then(|_| self.can_reach(&capture_mv).map_or(None, |_| Some(to)))
+                        self.can_reach(&regular_mv).map_or(
+                            self.can_reach(&capture_mv).map_or(None, |_| Some(to)),
+                            |_| Some(to),
+                        )
                     }
+                    // Piece::King(_, _) => {
+                    //     let mv = Move::new(from, &to, Action::Regular);
+                    //     Piece::can_reach_king(&mv, &MoveCounter(1)).map_or(None, |_| Some(to))
+                    // }
                     _ => {
                         let mv = Move::new(from, &to, Action::Regular);
                         self.can_reach(&mv).map_or(None, |_| Some(to))

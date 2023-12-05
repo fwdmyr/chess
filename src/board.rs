@@ -192,6 +192,8 @@ impl Board {
 
         res?.then(|| ()).map_or(Ok(()), |_| Err(CatchAllError::InCheck))?;
 
+        println!("Legal move: {:?} -> {:?}", from, to);
+
         Ok(())
     }
 
@@ -240,7 +242,14 @@ impl Board {
                 piece
                     .all_moves(&from)
                     .iter()
-                    .any(|to| self.resolve_check(&from, to, color).is_ok())
+                    // Assess if path is unobstructed aswell.
+                    .any(|to| {
+                        self.assess_move(from, &Move::new(from, to, Action::Regular))
+                            .is_ok_and(|_| {
+                                self.resolve_check(&from, to, color)
+                                    .is_ok_and(|_| self.action(to, color).is_ok())
+                            })
+                    })
             })
             .then(|| ())
             .ok_or(CatchAllError::NoLegalMoves)
