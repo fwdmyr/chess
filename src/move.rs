@@ -25,7 +25,7 @@ pub enum Move {
 impl Move {
     #[rustfmt::skip]
     pub fn new(from: &Position, to: &Position, action: Action) -> Self {
-        match from.distance_to(to) {
+        match Distance::new(&from, &to) {
             Distance { file: 0, rank: r @1.. } => Move::Straight(Direction::Up, r as usize, action),
             Distance { file: 0, rank: r @..=-1 } => Move::Straight(Direction::Down, r.abs() as usize, action),
             Distance { file: f @1.., rank: 0 } => Move::Straight(Direction::Right, f as usize, action),

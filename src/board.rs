@@ -1,4 +1,5 @@
 use crate::error::CatchAllError;
+use crate::path::Path;
 use crate::piece::{Color, MoveCounter, Piece};
 use crate::position::{Distance, Position};
 use crate::r#move::Direction;
@@ -14,11 +15,7 @@ pub struct MoveCache {
 
 impl MoveCache {
     pub fn new(from: Position, to: Position, captured: Option<Piece>) -> Self {
-        Self {
-            from,
-            to,
-            captured: captured,
-        }
+        Self { from, to, captured }
     }
 }
 
@@ -140,10 +137,10 @@ impl Board {
         piece.update();
 
         match piece {
-            Piece::Pawn(Color::White, _) if to.rank() == 7 => {
+            Piece::Pawn(Color::White, _) if to.rank == 7 => {
                 self.pieces.insert(to.clone(), Piece::Queen(Color::White));
             }
-            Piece::Pawn(Color::Black, _) if to.rank() == 0 => {
+            Piece::Pawn(Color::Black, _) if to.rank == 0 => {
                 self.pieces.insert(to.clone(), Piece::Queen(Color::Black));
             }
             _ => {
@@ -177,7 +174,7 @@ impl Board {
     }
 
     fn assess_move(&self, pos: &Position, mv: &Move) -> Result<(), CatchAllError> {
-        pos.path(mv)?
+        Path::new(&pos, mv)?
             .iter()
             .try_fold((), |_, position| self.has_piece(position))
     }
@@ -223,7 +220,7 @@ impl Board {
     ) -> Result<(), CatchAllError> {
         match (piece, mv) {
             (Piece::King(color, MoveCounter(0)), Move::Straight(direction, 2, Action::Regular)) => {
-                let mut path = from.path(mv)?;
+                let mut path = Path::new(&from, mv)?;
                 path.push(from.clone());
                 path.iter()
                     .try_for_each(|to| self.resolve_check(from, to, color))?;
@@ -256,15 +253,17 @@ impl Board {
     }
 
     fn resolve_enpassant(&mut self, piece: &Piece, to: &Position) -> Result<(), CatchAllError> {
-        let prev_pos = self.enpassant.and_then(|pos| match pos.distance_to(to) {
-            Distance { file: 0, rank: 1 } if piece.color() == Color::White => {
-                Some(Position::new(to.file(), to.rank() - 1))
-            }
-            Distance { file: 0, rank: -1 } if piece.color() == Color::Black => {
-                Some(Position::new(to.file(), to.rank() + 1))
-            }
-            _ => None,
-        });
+        let prev_pos = self
+            .enpassant
+            .and_then(|pos| match Distance::new(&pos, &to) {
+                Distance { file: 0, rank: 1 } if piece.color() == Color::White => {
+                    Some(Position::new(to.file, to.rank - 1))
+                }
+                Distance { file: 0, rank: -1 } if piece.color() == Color::Black => {
+                    Some(Position::new(to.file, to.rank + 1))
+                }
+                _ => None,
+            });
 
         if let Some(pos) = prev_pos {
             let enpassantable_piece = self.pieces.remove(&pos).ok_or(CatchAllError::EmptyField)?;

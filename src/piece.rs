@@ -10,7 +10,7 @@ pub enum Color {
 
 impl From<Position> for Color {
     fn from(position: Position) -> Self {
-        if (position.file() + position.rank()) % 2 == 0 {
+        if (position.file + position.rank) % 2 == 0 {
             Color::Black
         } else {
             Color::White
